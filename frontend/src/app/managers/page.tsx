@@ -1,19 +1,28 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/Card';
 import { managerService } from '@/services/api';
-import { Users, Building2, Ticket, Star } from 'lucide-react';
+import {
+    Users2,
+    Building2,
+    Ticket,
+    Star,
+    Search,
+    MoreHorizontal,
+    Plus
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function ManagersPage() {
     const [managers, setManagers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         async function loadManagers() {
             try {
                 const { data } = await managerService.getManagers();
-                setManagers(data.data);
+                setManagers(data.data || []);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -23,66 +32,114 @@ export default function ManagersPage() {
         loadManagers();
     }, []);
 
+    const filteredManagers = managers.filter(m =>
+        m.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.office?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="p-8">
-            <header className="mb-8 flex justify-between items-end">
-                <div>
-                    <h2 className="text-3xl font-bold mb-2">Team Overview</h2>
-                    <p className="text-slate-400">Manage your specialists and monitor their current capacity</p>
+        <div className="flex flex-col h-full bg-[#0d161d] overflow-hidden">
+            {/* Top Toolbar - AmoCRM Style */}
+            <div className="h-14 bg-[#111b21] border-b border-[#233642] flex items-center px-4 justify-between shrink-0 z-30">
+                <div className="flex items-center gap-4">
+                    <h1 className="text-foreground font-bold text-sm uppercase tracking-wider">КОМАНДА</h1>
+                    <div className="h-6 w-[1px] bg-[#233642]" />
+                    <div className="relative group">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5b6f7c]" />
+                        <input
+                            type="text"
+                            placeholder="Поиск менеджера..."
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="bg-transparent text-xs pl-9 pr-4 py-1.5 rounded-md border border-transparent focus:border-[#3489db] focus:bg-[#182833] focus:outline-none w-64 transition-all"
+                        />
+                    </div>
                 </div>
-                <div className="flex gap-4">
-                    {/* Summary stats */}
+
+                <div className="flex items-center gap-4">
+                    <div className="text-[11px] text-[#5b6f7c] font-bold uppercase tracking-tighter">
+                        {filteredManagers.length} <span className="opacity-60 font-medium">сотрудников</span>
+                    </div>
+                    <div className="h-6 w-[1px] bg-[#233642]" />
+                    <button className="text-[#5b6f7c] hover:text-white transition-colors p-2">
+                        <MoreHorizontal size={20} />
+                    </button>
+                    <button className="bg-[#3489db] hover:bg-[#3b9cf7] text-white px-5 py-2 rounded flex items-center gap-2 text-[11px] font-black shadow-lg shadow-primary/10 transition-all uppercase tracking-tight active:scale-95">
+                        <Plus size={16} strokeWidth={3} />
+                        Добавить
+                    </button>
                 </div>
-            </header>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {managers.map((manager) => (
-                    <Card key={manager.id} className="p-6 flex flex-col gap-4 border-white/5 hover:border-primary/20">
-                        <div className="flex justify-between items-start">
-                            <div className="flex gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center font-bold text-xl">
-                                    {manager.fullName[0]}
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredManagers.map((manager, idx) => (
+                        <motion.div
+                            key={manager.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="bg-[#182833] border border-[#233642] p-5 rounded-lg hover:border-[#3489db]/40 transition-all group"
+                        >
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex gap-3">
+                                    <div className="w-10 h-10 rounded bg-[#111b21] flex items-center justify-center font-bold text-[#3489db] border border-[#233642]">
+                                        {manager.fullName[0].toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-sm text-[#cbd3d9] group-hover:text-[#3489db] transition-colors">
+                                            {manager.fullName}
+                                        </h3>
+                                        <p className="text-[10px] text-[#5b6f7c] uppercase font-bold tracking-widest">
+                                            {manager.position.replace('_', ' ')}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-lg">{manager.fullName}</h3>
-                                    <p className="text-xs text-slate-500 uppercase tracking-widest">{manager.position.replace('_', ' ')}</p>
+                                {manager.skills.includes('VIP') && (
+                                    <div className="bg-amber-500/10 p-1 rounded">
+                                        <Star size={14} className="text-amber-500 fill-amber-500" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-2 mb-4">
+                                <div className="flex items-center gap-2 text-[11px] text-[#cbd3d9]">
+                                    <Building2 size={14} className="text-[#5b6f7c]" />
+                                    <span>{manager.office?.name || 'Удаленно'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[11px] text-[#cbd3d9]">
+                                    <Ticket size={14} className="text-[#5b6f7c]" />
+                                    <span>{manager.activeTicketCount} активных тикетов</span>
                                 </div>
                             </div>
-                            <div className="flex gap-1">
-                                {manager.skills.includes('VIP') && <Star size={14} className="text-yellow-500 fill-yellow-500" />}
-                            </div>
-                        </div>
 
-                        <div className="flex flex-col gap-2 my-2">
-                            <div className="flex items-center gap-2 text-sm text-slate-400">
-                                <Building2 size={16} />
-                                <span>{manager.office?.name} Office</span>
+                            {/* Load indicator */}
+                            <div className="mt-4 pt-4 border-t border-[#233642]">
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <span className="text-[10px] text-[#5b6f7c] font-bold uppercase tracking-wider">Загрузка</span>
+                                    <span className="text-[10px] text-[#cbd3d9] font-bold">{manager.activeTicketCount}/10</span>
+                                </div>
+                                <div className="w-full h-1 bg-[#111b21] rounded-full overflow-hidden">
+                                    <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min((manager.activeTicketCount / 10) * 100, 100)}%` }}
+                                        className={`h-full transition-all ${manager.activeTicketCount >= 8 ? 'bg-red-500' :
+                                                manager.activeTicketCount >= 5 ? 'bg-amber-500' : 'bg-[#3489db]'
+                                            }`}
+                                    />
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-400">
-                                <Ticket size={16} />
-                                <span>{manager.activeTicketCount} tickets in work</span>
-                            </div>
-                        </div>
 
-                        <div className="mt-auto pt-4 border-t border-white/5 flex gap-2 overflow-x-auto">
-                            {manager.skills.map((skill: string) => (
-                                <span key={skill} className="px-2 py-1 bg-white/5 rounded text-[10px] font-bold text-slate-400">
-                                    {skill}
-                                </span>
-                            ))}
-                        </div>
-
-                        <div className="mt-2">
-                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-primary transition-all"
-                                    style={{ width: `${Math.min((manager.activeTicketCount / 10) * 100, 100)}%` }}
-                                />
+                            <div className="mt-4 flex flex-wrap gap-1.5">
+                                {manager.skills.map((skill: string) => (
+                                    <span key={skill} className="px-1.5 py-0.5 bg-[#111b21] border border-[#233642] rounded text-[9px] font-bold text-[#5b6f7c] uppercase">
+                                        {skill}
+                                    </span>
+                                ))}
                             </div>
-                            <p className="text-[10px] text-right mt-1 text-slate-600">Capacity: {manager.activeTicketCount}/10</p>
-                        </div>
-                    </Card>
-                ))}
+                        </motion.div>
+                    ))}
+                </div>
             </div>
         </div>
     );
