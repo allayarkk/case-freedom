@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import app from './app.js';
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
-const server = app.listen(PORT, () => console.log(`🚀 FIRE Server on port ${PORT}`));
+const server = app.listen(PORT, () => {
+    console.log(`🚀 [FIRE] Backend is running on port ${PORT}`);
+});
 
 // Таймауты для длительных AI-задач (5 мин)
 server.timeout = 300_000;

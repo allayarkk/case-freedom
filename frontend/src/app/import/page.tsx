@@ -173,6 +173,7 @@ export default function ImportPage() {
         tickets: null,
     });
 
+    const PORT = process.env.PORT || 8080;
     const [processingQueue, setProcessingQueue] = useState<TicketProgress[]>([]);
     const [processedCount, setProcessedCount] = useState(0);
 
@@ -345,9 +346,9 @@ export default function ImportPage() {
                         <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                             {processingQueue.map((item, i) => (
                                 <div key={i} className={`p-4 rounded-xl border transition-all flex items-center gap-4 ${item.status === 'done' ? 'bg-emerald-500/5 border-emerald-500/20' :
-                                        item.status === 'error' ? 'bg-red-500/5 border-red-500/20' :
-                                            item.status === 'ai' ? 'bg-primary/5 border-primary/20' :
-                                                'bg-white/5 border-white/5 opacity-60'
+                                    item.status === 'error' ? 'bg-red-500/5 border-red-500/20' :
+                                        item.status === 'ai' ? 'bg-primary/5 border-primary/20' :
+                                            'bg-white/5 border-white/5 opacity-60'
                                     }`}>
                                     <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center shrink-0">
                                         {item.status === 'done' ? <CheckCircle2 className="text-emerald-400" /> :
@@ -430,6 +431,48 @@ export default function ImportPage() {
                                 {status === 'loading' ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
                                 {activeTab === 'tickets' ? 'Запустить AI Routing Engine' : `Импортировать ${tab.label}`}
                             </button>
+
+                            {/* --- РЕЗУЛЬТАТЫ ИМПОРТА (Офисы/Менеджеры) --- */}
+                            {result && (
+                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={`p-5 rounded-2xl border ${result.errors && result.errors.length > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${result.errors && result.errors.length > 0 ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                            {result.errors && result.errors.length > 0 ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+                                        </div>
+                                        <h4 className="font-bold text-sm">
+                                            {result.errors && result.errors.length > 0 ? 'Импорт завершен с ошибками' : 'Импорт успешно завершен'}
+                                        </h4>
+                                    </div>
+
+                                    {/* Статистика */}
+                                    <div className="grid grid-cols-3 gap-4 mb-4">
+                                        <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                            <p className="text-[9px] text-slate-500 uppercase font-black mb-1">Создано</p>
+                                            <p className="text-xl font-mono text-white font-bold">{result.created || result.processed || 0}</p>
+                                        </div>
+                                        <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                            <p className="text-[9px] text-slate-500 uppercase font-black mb-1">Пропущено</p>
+                                            <p className="text-lg font-mono text-slate-400">{result.skipped || 0}</p>
+                                        </div>
+                                        <div className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                            <p className="text-[9px] text-slate-500 uppercase font-black mb-1">Ошибки</p>
+                                            <p className="text-lg font-mono text-red-400 font-bold">{result.failed || (result.errors?.length || 0)}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Ошибки (если есть) */}
+                                    {result.errors && result.errors.length > 0 && (
+                                        <div className="max-h-32 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+                                            {result.errors.map((err, i) => (
+                                                <div key={i} className="text-[10px] text-red-400 bg-red-400/5 px-3 py-1.5 rounded-lg border border-red-400/10 flex gap-2">
+                                                    <span className="opacity-50"># {i + 1}</span>
+                                                    {err}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </motion.div>
+                            )}
                         </Card>
                     </motion.div>
                 )}
