@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #00a3ff;
+  --color-secondary: #0055ff;
+  --color-background: #0b1120;
+  --color-surface: #1e293b;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-slate-100 font-sans;
+  }
+}
+
+.glass {
+  @apply bg-white/5 backdrop-blur-lg border border-white/10;
+}
+
+.card-hover {
+  @apply transition-all duration-300 hover:bg-white/10 hover:border-white/20;
+}

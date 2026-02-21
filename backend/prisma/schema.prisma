@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TicketType {
+  COMPLAINT
+  DATA_CHANGE
+  CONSULTATION
+  CLAIM
+  APP_MALFUNCTION
+  FRAUD
+  SPAM
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+enum Segment {
+  VIP
+  MASS
+  PRIORITY
+}
+
+enum Language {
+  KZ
+  ENG
+  RU
+}
+
+enum ManagerPosition {
+  SPECIALIST
+  SENIOR_SPECIALIST
+  LEAD_SPECIALIST
+}
+
+enum ManagerSkill {
+  VIP
+  ENG
+  KZ
+}
+
+enum UserRole {
+  ADMIN
+  OFFICE_ADMIN
+  MANAGER
+}
+
+model Office {
+  id        String    @id @default(cuid())
+  name      String
+  address   String
+  latitude  Float?
+  longitude Float?
+  managers  Manager[]
+  tickets   Ticket[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Manager {
+  id                 String               @id @default(cuid())
+  fullName           String
+  position           ManagerPosition
+  userRole           UserRole
+  officeId           String
+  office             Office               @relation(fields: [officeId], references: [id])
+  skills             ManagerSkill[]
+  activeTicketCount  Int                  @default(0)
+  tickets            Ticket[]
+  assignmentLogsFrom AssignmentLog[]      @relation("FromManager")
+  assignmentLogsTo   AssignmentLog[]      @relation("ToManager")
+  assignmentLogsBy   AssignmentLog[]      @relation("AssignedBy")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+model Ticket {
+  id             String           @id @default(cuid())
+  clientGuid     String
+  gender         String
+  dateOfBirth    DateTime
+  description    String           @db.Text
+  attachments    String?
+  segment        Segment
+  country        String
+  oblast         String
+  city           String
+  street         String
+  houseNumber    String
+  managerId      String?
+  manager        Manager?         @relation(fields: [managerId], references: [id])
+  officeId       String?
+  office         Office?          @relation(fields: [officeId], references: [id])
+  analysis       TicketAnalysis?
+  assignmentLogs AssignmentLog[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([segment])
+  @@index([managerId])
+  @@index([officeId])
+}
+
+model TicketAnalysis {
+  id        String     @id @default(cuid())
+  ticketId  String     @unique
+  ticket    Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  type      TicketType
+  sentiment Sentiment
+  priority  Int        @default(1)
+  language  Language   @default(RU)
+  summary   String     @db.Text
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model AssignmentLog {
+  id            String   @id @default(cuid())
+  ticketId      String
+  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromManagerId String?
+  fromManager   Manager? @relation("FromManager", fields: [fromManagerId], references: [id])
+  toManagerId   String
+  toManager     Manager  @relation("ToManager", fields: [toManagerId], references: [id])
+  assignedById  String
+  assignedBy    Manager  @relation("AssignedBy", fields: [assignedById], references: [id])
+  reason        String?
+  createdAt     DateTime @default(now())
+}
