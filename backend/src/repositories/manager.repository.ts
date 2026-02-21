@@ -8,32 +8,18 @@ export class ManagerRepository {
 
         return prisma.manager.findMany({
             where,
-            include: {
-                office: true,
-                _count: {
-                    select: { tickets: true },
-                },
-            },
+            include: { office: true, _count: { select: { tickets: true } } },
         });
     }
 
     async findById(id: string) {
-        return prisma.manager.findUnique({
-            where: { id },
-            include: {
-                office: true,
-            },
-        });
+        return prisma.manager.findUnique({ where: { id }, include: { office: true } });
     }
 
-    async updateActiveCount(id: string, delta: number): Promise<void> {
+    async updateActiveCount(id: string, delta: number) {
         await prisma.manager.update({
             where: { id },
-            data: {
-                activeTicketCount: {
-                    increment: delta,
-                },
-            },
+            data: { activeTicketCount: { increment: delta } },
         });
     }
 }

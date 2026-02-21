@@ -1,31 +1,22 @@
-import { StatusCodes } from 'http-status-codes';
-
 export class AppError extends Error {
     constructor(
         public message: string,
-        public statusCode: number = StatusCodes.INTERNAL_SERVER_ERROR,
-        public isOperational: boolean = true
+        public statusCode: number = 500,
+        public isOperational = true
     ) {
         super(message);
         Object.setPrototypeOf(this, new.target.prototype);
-        Error.captureStackTrace(this, this.constructor);
     }
 }
 
 export class NotFoundError extends AppError {
-    constructor(message: string = 'Resource not found') {
-        super(message, StatusCodes.NOT_FOUND);
-    }
+    constructor(msg = 'Resource not found') { super(msg, 404); }
 }
 
 export class ValidationError extends AppError {
-    constructor(message: string = 'Validation failed') {
-        super(message, StatusCodes.BAD_REQUEST);
-    }
+    constructor(msg = 'Validation failed') { super(msg, 400); }
 }
 
 export class ForbiddenError extends AppError {
-    constructor(message: string = 'Access forbidden') {
-        super(message, StatusCodes.FORBIDDEN);
-    }
+    constructor(msg = 'Access forbidden') { super(msg, 403); }
 }

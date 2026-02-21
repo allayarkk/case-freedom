@@ -5,18 +5,14 @@ type Skill = 'VIP' | 'ENG' | 'KZ';
 
 function mapPosition(val: string): Position {
     const v = val.toUpperCase().trim().replace(/\s+/g, '_');
-    if (v === 'LEAD_SPECIALIST' || v === 'ГЛАВНЫЙ_СПЕЦИАЛИСТ' || v === 'ГЛАВНЫЙ СПЕЦИАЛИСТ' || v.startsWith('LEAD')) {
-        return 'LEAD_SPECIALIST';
-    }
-    if (v === 'SENIOR_SPECIALIST' || v === 'ВЕДУЩИЙ_СПЕЦИАЛИСТ' || v === 'ВЕДУЩИЙ СПЕЦИАЛИСТ' || v.startsWith('SENIOR') || v.startsWith('ВЕДУЩ')) {
-        return 'SENIOR_SPECIALIST'; // We don't have this in enum, map to LEAD
-    }
+    if (v.startsWith('LEAD') || v.includes('ГЛАВН')) return 'LEAD_SPECIALIST';
+    if (v.startsWith('SENIOR') || v.startsWith('ВЕДУЩ')) return 'SENIOR_SPECIALIST';
     return 'SPECIALIST';
 }
 
 function mapSkills(val: string): Skill[] {
+    const parts = val.toUpperCase().split(/[\s,;]+/).filter(Boolean);
     const skills: Skill[] = [];
-    const parts = val.toUpperCase().split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
     for (const p of parts) {
         if (p === 'VIP') skills.push('VIP');
         if (p === 'ENG' || p === 'ENGLISH') skills.push('ENG');
@@ -26,44 +22,35 @@ function mapSkills(val: string): Skill[] {
 }
 
 export class ManagerImportService {
-    async importFromCSV(rows: Record<string, string>[]): Promise<{ created: number; failed: number; errors: string[] }> {
-        let created = 0;
-        let failed = 0;
+    async importFromCSV(rows: Record<string, string>[]) {
+        let created = 0, failed = 0;
         const errors: string[] = [];
 
         for (const row of rows) {
             try {
-                const fullName = row['ФИО'] ?? row['Имя'] ?? row['Name'] ?? row['fullName'] ?? '';
-                const officeName = row['Офис'] ?? row['Office'] ?? row['officeName'] ?? '';
-                const positionRaw = row['Должность'] ?? row['Position'] ?? row['position'] ?? 'SPECIALIST';
-                const skillsRaw = row['Навыки'] ?? row['Skills'] ?? row['skills'] ?? '';
+                const fullName = row['ФИО'] ?? row['Имя'] ?? row['Name'] ?? '';
+                const officeName = row['Офис'] ?? row['Office'] ?? '';
+                const positionRaw = row['Должность'] ?? row['Position'] ?? 'SPECIALIST';
+                const skillsRaw = row['Навыки'] ?? row['Skills'] ?? '';
 
-                if (!fullName) { errors.push('Пропущено: нет ФИО'); failed++; continue; }
-                if (!officeName) { errors.push(`Пропущено ${fullName}: нет Офис`); failed++; continue; }
+                if (!fullName) { errors.push('Нет ФИО'); failed++; continue; }
+                if (!officeName) { errors.push(`${fullName}: нет Офис`); failed++; continue; }
 
                 const office = await prisma.office.findFirst({ where: { name: officeName } });
-                if (!office) {
-                    errors.push(`Офис "${officeName}" не найден. Сначала импортируйте офисы.`);
-                    failed++;
-                    continue;
-                }
-
-                const position = mapPosition(positionRaw);
-                const skills = mapSkills(skillsRaw);
+                if (!office) { errors.push(`Офис "${officeName}" не найден`); failed++; continue; }
 
                 await prisma.manager.create({
                     data: {
                         fullName,
-                        position,
+                        position: mapPosition(positionRaw),
                         userRole: 'MANAGER',
                         officeId: office.id,
-                        skills,
+                        skills: mapSkills(skillsRaw),
                     },
                 });
                 created++;
             } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : 'Unknown error';
-                errors.push(`Ошибка: ${msg}`);
+                errors.push(err instanceof Error ? err.message : 'Unknown error');
                 failed++;
             }
         }

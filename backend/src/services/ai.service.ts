@@ -9,57 +9,31 @@ export type AIAnalysisResult = {
     summary: string;
 };
 
-export class AIService {
-    private openai: OpenAI;
+const SYSTEM_PROMPT = `You are a support ticket classifier for Freedom Broker. Analyze the ticket and respond with a JSON object.
+Types: COMPLAINT, DATA_CHANGE, CONSULTATION, CLAIM, APP_MALFUNCTION, FRAUD, SPAM.
+Respond ONLY with: { "type": "TYPE", "sentiment": "POSITIVE|NEUTRAL|NEGATIVE", "priority": 1-10, "language": "KZ|ENG|RU", "summary": "1-2 sentences" }`;
 
-    constructor() {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
-    }
+export class AIService {
+    private openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     async analyzeTicket(description: string): Promise<AIAnalysisResult> {
         try {
-            console.log(`[AI] Analyzing description: "${description.slice(0, 50)}..."`);
-            console.log(`[AI] Using model: gpt-4o-mini`);
+            console.log(`[AI] Analyzing: "${description.slice(0, 50)}..."`);
 
             const response = await this.openai.chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: [
-                    {
-                        role: 'system',
-                        content: `You are a support ticket classifier for Freedom Broker. Analyze the ticket and respond with a JSON object.
-Types:
-- COMPLAINT: general dissatisfaction
-- DATA_CHANGE: requests to change phone, ID, name, etc.
-- CONSULTATION: questions about products
-- CLAIM: financial/legal claims
-- APP_MALFUNCTION: bugs in mobile app
-- FRAUD: suspicious activity reports
-- SPAM: irrelevant content
-
-Respond ONLY with this JSON structure:
-{
-  "type": "TYPE",
-  "sentiment": "POSITIVE|NEUTRAL|NEGATIVE",
-  "priority": 1-10,
-  "language": "KZ|ENG|RU",
-  "summary": "1-2 sentences summarizing the issue"
-}`,
-                    },
-                    {
-                        role: 'user',
-                        content: description,
-                    },
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'user', content: description },
                 ],
                 response_format: { type: 'json_object' },
             });
 
             const content = response.choices[0].message.content;
-            if (!content) throw new AppError('AI analysis failed: empty response');
+            if (!content) throw new AppError('AI: empty response');
 
             const parsed = JSON.parse(content) as AIAnalysisResult;
-            console.log(`[AI] Result for ticket: ${parsed.type} | P${parsed.priority} | ${parsed.language}`);
+            console.log(`[AI] → ${parsed.type} | P${parsed.priority} | ${parsed.language}`);
 
             return {
                 type: parsed.type,
@@ -69,9 +43,9 @@ Respond ONLY with this JSON structure:
                 summary: parsed.summary,
             };
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Unknown AI error';
-            console.error('[AI] Service error:', message);
-            throw new AppError(`AI Service failed: ${message}`);
+            const msg = error instanceof Error ? error.message : 'Unknown AI error';
+            console.error('[AI] Error:', msg);
+            throw new AppError(`AI Service failed: ${msg}`);
         }
     }
 }

@@ -13,39 +13,21 @@ export class ImportController {
     importOffices = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const csv = req.body.csv as string;
-            if (!csv?.trim()) {
-                res.status(400).json({ success: false, error: { message: 'Missing csv field' } });
-                return;
-            }
-            const rows = parseCSV(csv) as Record<string, string>[];
-            const result = await this.officeImport.importFromCSV(rows);
-            res.json(successResponse(result));
-        } catch (err) {
-            next(err);
-        }
+            if (!csv?.trim()) { res.status(400).json({ success: false, error: { message: 'Missing csv' } }); return; }
+            res.json(successResponse(await this.officeImport.importFromCSV(parseCSV(csv))));
+        } catch (e) { next(e); }
     };
 
     importManagers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const csv = req.body.csv as string;
-            if (!csv?.trim()) {
-                res.status(400).json({ success: false, error: { message: 'Missing csv field' } });
-                return;
-            }
-            const rows = parseCSV(csv) as Record<string, string>[];
-            const result = await this.managerImport.importFromCSV(rows);
-            res.json(successResponse(result));
-        } catch (err) {
-            next(err);
-        }
+            if (!csv?.trim()) { res.status(400).json({ success: false, error: { message: 'Missing csv' } }); return; }
+            res.json(successResponse(await this.managerImport.importFromCSV(parseCSV(csv))));
+        } catch (e) { next(e); }
     };
 
-    getOffices = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-        try {
-            const offices = await this.officeRepo.findAll();
-            res.json(successResponse(offices));
-        } catch (err) {
-            next(err);
-        }
+    getOffices = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try { res.json(successResponse(await this.officeRepo.findAll())); }
+        catch (e) { next(e); }
     };
 }

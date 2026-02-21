@@ -1,36 +1,32 @@
 import prisma from '../config/database.js';
 
 export class OfficeImportService {
-    async importFromCSV(rows: Record<string, string>[]): Promise<{ created: number; skipped: number; errors: string[] }> {
-        let created = 0;
-        let skipped = 0;
+    async importFromCSV(rows: Record<string, string>[]) {
+        let created = 0, skipped = 0;
         const errors: string[] = [];
 
         for (const row of rows) {
             try {
-                const name = row['Название'] ?? row['Name'] ?? row['name'] ?? row['Офис'] ?? '';
-                const address = row['Адрес'] ?? row['Address'] ?? row['address'] ?? '';
-                const latStr = row['Широта'] ?? row['Latitude'] ?? row['lat'] ?? '';
-                const lngStr = row['Долгота'] ?? row['Longitude'] ?? row['lng'] ?? row['lon'] ?? '';
+                const name = row['Название'] ?? row['Name'] ?? row['Офис'] ?? '';
+                const address = row['Адрес'] ?? row['Address'] ?? '';
+                const lat = row['Широта'] ?? row['Latitude'] ?? '';
+                const lng = row['Долгота'] ?? row['Longitude'] ?? row['lon'] ?? '';
 
-                if (!name) { errors.push('Пропущено: нет Названия'); skipped++; continue; }
+                if (!name) { errors.push('Нет названия'); skipped++; continue; }
 
-                // Skip duplicates
-                const existing = await prisma.office.findFirst({ where: { name } });
-                if (existing) { skipped++; continue; }
+                const exists = await prisma.office.findFirst({ where: { name } });
+                if (exists) { skipped++; continue; }
 
                 await prisma.office.create({
                     data: {
-                        name,
-                        address,
-                        latitude: latStr ? parseFloat(latStr) : null,
-                        longitude: lngStr ? parseFloat(lngStr) : null,
+                        name, address,
+                        latitude: lat ? parseFloat(lat) : null,
+                        longitude: lng ? parseFloat(lng) : null,
                     },
                 });
                 created++;
             } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : 'Unknown error';
-                errors.push(`Ошибка: ${msg}`);
+                errors.push(err instanceof Error ? err.message : 'Unknown error');
                 skipped++;
             }
         }

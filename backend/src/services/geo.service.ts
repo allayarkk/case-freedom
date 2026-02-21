@@ -1,57 +1,35 @@
 import axios from 'axios';
 
-interface Coordinates {
-    lat: number;
-    lng: number;
-}
+interface Coords { lat: number; lng: number; }
 
 export class GeoService {
-    private readonly baseUrl = 'https://nominatim.openstreetmap.org/search';
-
-    async getCoordinates(address: string): Promise<Coordinates | null> {
+    /** Nominatim geocoding → координаты по текстовому адресу */
+    async getCoordinates(address: string): Promise<Coords | null> {
         try {
-            const response = await axios.get(this.baseUrl, {
-                params: {
-                    q: address,
-                    format: 'json',
-                    limit: 1,
-                },
-                headers: {
-                    'User-Agent': 'FIRE-Routing-Engine/1.0 (freedom-broker)',
-                },
+            const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
+                params: { q: address, format: 'json', limit: 1 },
+                headers: { 'User-Agent': 'FIRE-Routing-Engine/1.0' },
                 timeout: 8000,
             });
 
-            if (response.data && response.data.length > 0) {
-                return {
-                    lat: parseFloat(response.data[0].lat as string),
-                    lng: parseFloat(response.data[0].lon as string),
-                };
+            if (data?.length > 0) {
+                return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
             }
-
             return null;
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Geo lookup failed';
-            console.error('GeoService error:', message);
+        } catch (err: unknown) {
+            console.error('[Geo] Error:', err instanceof Error ? err.message : err);
             return null;
         }
     }
 
-    calculateDistance(coord1: Coordinates, coord2: Coordinates): number {
+    /** Haversine — расстояние между двумя точками в км */
+    calculateDistance(a: Coords, b: Coords): number {
         const R = 6371;
-        const dLat = this.toRad(coord2.lat - coord1.lat);
-        const dLon = this.toRad(coord2.lng - coord1.lng);
-        const lat1 = this.toRad(coord1.lat);
-        const lat2 = this.toRad(coord2.lat);
-
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
-
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const dLat = this.rad(b.lat - a.lat);
+        const dLon = this.rad(b.lng - a.lng);
+        const x = Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(this.rad(a.lat)) * Math.cos(this.rad(b.lat));
+        return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
     }
 
-    private toRad(value: number): number {
-        return (value * Math.PI) / 180;
-    }
+    private rad(v: number) { return (v * Math.PI) / 180; }
 }

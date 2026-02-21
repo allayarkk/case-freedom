@@ -6,29 +6,19 @@ import { RoutingService } from './routing.service.js';
 import { ManagerRepository } from '../repositories/manager.repository.js';
 import { TicketRepository } from '../repositories/ticket.repository.js';
 
-interface UserContext {
-    id: string;
-    role: 'ADMIN' | 'OFFICE_ADMIN' | 'MANAGER';
-    officeId?: string;
-}
+type Segment = 'VIP' | 'MASS' | 'PRIORITY';
 
-type SegmentValue = 'VIP' | 'MASS' | 'PRIORITY';
-
-function mapSegment(val: string | undefined): SegmentValue {
-    if (!val) return 'MASS';
-    const s = val.toUpperCase().trim();
+function mapSegment(val?: string): Segment {
+    const s = (val || '').toUpperCase().trim();
     if (s === 'VIP') return 'VIP';
     if (s === 'PRIORITY') return 'PRIORITY';
     return 'MASS';
 }
 
-/**
- * Utility to find value in record regardless of case or trailing spaces in keys
- */
-function getVal(row: Record<string, string>, possibleKeys: string[]): string {
-    const rowKeys = Object.keys(row);
-    for (const pk of possibleKeys) {
-        const found = rowKeys.find(rk => rk.trim().toLowerCase() === pk.toLowerCase());
+/** Ищет значение в строке CSV, игнорируя регистр и пробелы в именах колонок */
+function getVal(row: Record<string, string>, keys: string[]): string {
+    for (const pk of keys) {
+        const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === pk.toLowerCase());
         if (found) return row[found];
     }
     return '';
@@ -38,42 +28,33 @@ export class TicketService {
     constructor(
         private ticketRepo: TicketRepository,
         private managerRepo: ManagerRepository,
-        private aiService: AIService,
-        private geoService: GeoService,
-        private routingService: RoutingService
+        private ai: AIService,
+        private geo: GeoService,
+        private routing: RoutingService
     ) { }
 
-    async importTickets(csvData: Record<string, string>[]): Promise<{ processed: number; failed: number }> {
-        let processed = 0;
-        let failed = 0;
-
-        console.log(`[Import] Processing batch of ${csvData.length} records`);
+    async importTickets(csvData: Record<string, string>[]) {
+        let processed = 0, failed = 0;
+        console.log(`[Import] Batch: ${csvData.length} records`);
 
         for (const row of csvData) {
             const idx = processed + failed + 1;
             try {
                 const segment = mapSegment(getVal(row, ['Сегмент клиента', 'Сегмент']));
-                const description = getVal(row, ['Описание', 'Description', 'Описание ']);
+                const description = getVal(row, ['Описание', 'Description']);
                 const city = getVal(row, ['Населённый пункт', 'Город', 'City']);
                 const clientGuid = getVal(row, ['GUID клиента', 'GUID', 'clientGuid']);
 
-                if (!description || !clientGuid) {
-                    console.log(`[#${idx}] Skipping empty or invalid row`);
-                    failed++;
-                    continue;
-                }
+                if (!description || !clientGuid) { failed++; continue; }
 
-                console.log(`[#${idx}] Processing ticket for client ${clientGuid}`);
-
-                // 1. Create ticket
+                // 1. Создаем тикет
                 const ticket = await prisma.ticket.create({
                     data: {
                         clientGuid,
                         gender: getVal(row, ['Пол клиента', 'Пол']),
                         dateOfBirth: getVal(row, ['Дата рождения']) ? new Date(getVal(row, ['Дата рождения'])) : new Date(),
-                        description,
+                        description, segment,
                         attachments: getVal(row, ['Вложения']) || null,
-                        segment,
                         country: getVal(row, ['Страна']) || 'Казахстан',
                         oblast: getVal(row, ['Область']) || '',
                         city,
@@ -81,46 +62,34 @@ export class TicketService {
                         houseNumber: getVal(row, ['Дом']) || '',
                     },
                 });
-                console.log(`[#${idx}] Database record created: ${ticket.id}`);
 
-                // 2. AI + Geo in parallel
-                const address = `${getVal(row, ['Страна']) || 'Казахстан'}, ${getVal(row, ['Область'])}, ${city}, ${getVal(row, ['Улица'])} ${getVal(row, ['Дом'])}`.trim();
-
-                console.log(`[#${idx}] Requesting AI analysis for description: "${description.slice(0, 30)}..."`);
+                // 2. AI анализ + Геокодинг параллельно
+                const address = `${getVal(row, ['Страна']) || 'Казахстан'}, ${city}, ${getVal(row, ['Улица'])} ${getVal(row, ['Дом'])}`.trim();
                 const [aiResult, geoResult] = await Promise.all([
-                    this.aiService.analyzeTicket(description),
-                    this.geoService.getCoordinates(address),
+                    this.ai.analyzeTicket(description),
+                    this.geo.getCoordinates(address),
                 ]);
 
-                // 3. Save analysis
+                // 3. Сохраняем результат анализа
                 await prisma.ticketAnalysis.create({
                     data: {
                         ticketId: ticket.id,
-                        type: aiResult.type,
-                        sentiment: aiResult.sentiment,
-                        priority: aiResult.priority,
-                        language: aiResult.language,
+                        type: aiResult.type, sentiment: aiResult.sentiment,
+                        priority: aiResult.priority, language: aiResult.language,
                         summary: aiResult.summary,
                         latitude: geoResult?.lat ?? null,
                         longitude: geoResult?.lng ?? null,
                     },
                 });
-                console.log(`[#${idx}] AI Analysis saved: ${aiResult.type} | P${aiResult.priority} | Geo: ${geoResult ? 'MATCH' : 'NOT FOUND'}`);
 
-                // 4. Route
-                const routing = await this.routingService.findBestManager(ticket.id, segment, aiResult);
-                console.log(`[#${idx}] Router decision: ${routing.reason}`);
-
-                // 5. Assign
+                // 4. Маршрутизация → назначение менеджера
+                const routing = await this.routing.findBestManager(ticket.id, segment, aiResult);
                 await prisma.ticket.update({
                     where: { id: ticket.id },
-                    data: {
-                        managerId: routing.managerId,
-                        officeId: routing.officeId,
-                    },
+                    data: { managerId: routing.managerId, officeId: routing.officeId },
                 });
 
-                // 6. Log assignment
+                // 5. Лог назначения
                 await prisma.assignmentLog.create({
                     data: {
                         ticketId: ticket.id,
@@ -130,15 +99,11 @@ export class TicketService {
                     },
                 });
 
-                // 7. Increment active count
                 await this.managerRepo.updateActiveCount(routing.managerId, 1);
-
-                console.log(`[#${idx}] ✅ Successfully assigned to ${routing.managerId}`);
-
+                console.log(`[#${idx}] ✅ ${routing.reason}`);
                 processed++;
             } catch (err: unknown) {
-                const message = err instanceof Error ? err.stack : 'Unknown error';
-                console.error(`[#${idx}] ❌ Failed to process row:`, message);
+                console.error(`[#${idx}] ❌`, err instanceof Error ? err.message : err);
                 failed++;
             }
         }
@@ -149,13 +114,12 @@ export class TicketService {
     async getTickets(
         filters: { managerId?: string; officeId?: string; segment?: string },
         pagination: { skip: number; take: number },
-        user: UserContext
+        user: { id: string; role: string; officeId?: string }
     ) {
-        const scopedFilters: any = { ...filters };
-        if (user.role === 'MANAGER') scopedFilters.managerId = user.id;
-        else if (user.role === 'OFFICE_ADMIN' && user.officeId) scopedFilters.officeId = user.officeId;
-
-        return this.ticketRepo.findMany(scopedFilters, pagination);
+        const scoped: any = { ...filters };
+        if (user.role === 'MANAGER') scoped.managerId = user.id;
+        else if (user.role === 'OFFICE_ADMIN' && user.officeId) scoped.officeId = user.officeId;
+        return this.ticketRepo.findMany(scoped, pagination);
     }
 
     async getTicketById(id: string) {

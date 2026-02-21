@@ -3,20 +3,11 @@ import prisma from '../config/database.js';
 
 export class TicketRepository {
     async create(data: Prisma.TicketCreateInput) {
-        return prisma.ticket.create({
-            data,
-            include: {
-                analysis: true,
-            },
-        });
+        return prisma.ticket.create({ data, include: { analysis: true } });
     }
 
     async findMany(
-        filters: {
-            managerId?: string;
-            officeId?: string;
-            segment?: string;
-        },
+        filters: { managerId?: string; officeId?: string; segment?: string },
         pagination: { skip: number; take: number }
     ) {
         const where: Prisma.TicketWhereInput = {};
@@ -26,14 +17,8 @@ export class TicketRepository {
 
         const [tickets, total] = await Promise.all([
             prisma.ticket.findMany({
-                where,
-                skip: pagination.skip,
-                take: pagination.take,
-                include: {
-                    analysis: true,
-                    manager: true,
-                    office: true,
-                },
+                where, ...pagination,
+                include: { analysis: true, manager: true, office: true },
                 orderBy: { createdAt: 'desc' },
             }),
             prisma.ticket.count({ where }),
@@ -50,24 +35,14 @@ export class TicketRepository {
                 manager: true,
                 office: true,
                 assignmentLogs: {
-                    include: {
-                        fromManager: true,
-                        toManager: true,
-                        assignedBy: true,
-                    },
-                    orderBy: { createdAt: 'desc' },
+                    include: { fromManager: true, toManager: true, assignedBy: true },
+                    orderBy: { createdAt: 'desc' as const },
                 },
             },
         });
     }
 
     async update(id: string, data: Prisma.TicketUpdateInput) {
-        return prisma.ticket.update({
-            where: { id },
-            data,
-            include: {
-                analysis: true,
-            },
-        });
+        return prisma.ticket.update({ where: { id }, data, include: { analysis: true } });
     }
 }
