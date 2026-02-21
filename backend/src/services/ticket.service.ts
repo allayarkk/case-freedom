@@ -99,7 +99,7 @@ export class TicketService {
                 return getDefaultAnalysis(segment, !!attachments);
             }
             const s = performance.now();
-            const res = await this.ai.analyzeTicket(description, attachments);
+            const res = await this.ai.analyzeTicket(description, segment, attachments);
             aiDuration = Math.round(performance.now() - s);
             return res;
         };

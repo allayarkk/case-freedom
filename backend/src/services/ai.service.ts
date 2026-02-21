@@ -46,18 +46,30 @@ export class AIService {
      * Анализ тикета с текстом (и опционально вложением).
      * gpt-4o-mini поддерживает vision — если attachment является URL изображения, отправляем его.
      */
-    async analyzeTicket(description: string, attachments?: string | null): Promise<AIAnalysisResult> {
+    async analyzeTicket(description: string, segment: string, attachments?: string | null): Promise<AIAnalysisResult> {
         try {
             const hasAttachmentUrl = attachments && this.isImageUrl(attachments);
 
-            console.log(`[AI] Analyzing: "${description.slice(0, 60)}..."${hasAttachmentUrl ? ' + image' : ''}`);
+            console.log(`[AI] Analyzing (${segment}): "${description.slice(0, 60)}..."${hasAttachmentUrl ? ' + image' : ''}`);
+
+            const segmentRules = `
+Client Category: ${segment}
+Priority Rules:
+- FRAUD: priority 10.
+- CLAIM (возмещение/претензия): priority 8-10.
+- APP_MALFUNCTION (сбой): priority 6-8.
+- DATA_CHANGE: priority 5-7.
+- SPAM: priority 0.
+- VIP special rule: IF segment is VIP, priority MUST BE at least 6.
+- VIP + NEGATIVE rule: IF segment is VIP AND sentiment is NEGATIVE, priority MUST BE 8-10.
+`;
 
             let messages: OpenAI.ChatCompletionMessageParam[];
 
             if (hasAttachmentUrl) {
                 // Vision mode — отправляем текст + изображение
                 messages = [
-                    { role: 'system', content: VISION_SYSTEM_PROMPT },
+                    { role: 'system', content: VISION_SYSTEM_PROMPT + '\n' + segmentRules },
                     {
                         role: 'user',
                         content: [
@@ -73,7 +85,7 @@ export class AIService {
                     : description;
 
                 messages = [
-                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'system', content: SYSTEM_PROMPT + '\n' + segmentRules },
                     { role: 'user', content: userContent },
                 ];
             }
