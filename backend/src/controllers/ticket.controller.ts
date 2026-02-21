@@ -21,13 +21,10 @@ export class TicketController {
     getTickets = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const { page = '1', limit = '20', managerId, officeId, segment } = req.query;
-            const user = (req as any).user ?? { id: 'admin', role: 'ADMIN' as const };
             const skip = (Number(page) - 1) * Number(limit);
-
             const result = await this.ticketService.getTickets(
                 { managerId: managerId as string, officeId: officeId as string, segment: segment as string },
-                { skip, take: Number(limit) },
-                user
+                { skip, take: Number(limit) }
             );
 
             res.json(successResponse(result.tickets, { page: Number(page), limit: Number(limit), total: result.total }));

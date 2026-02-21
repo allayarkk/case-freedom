@@ -113,13 +113,9 @@ export class TicketService {
 
     async getTickets(
         filters: { managerId?: string; officeId?: string; segment?: string },
-        pagination: { skip: number; take: number },
-        user: { id: string; role: string; officeId?: string }
+        pagination: { skip: number; take: number }
     ) {
-        const scoped: any = { ...filters };
-        if (user.role === 'MANAGER') scoped.managerId = user.id;
-        else if (user.role === 'OFFICE_ADMIN' && user.officeId) scoped.officeId = user.officeId;
-        return this.ticketRepo.findMany(scoped, pagination);
+        return this.ticketRepo.findMany(filters, pagination);
     }
 
     async getTicketById(id: string) {

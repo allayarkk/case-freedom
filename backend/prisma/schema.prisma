@@ -46,12 +46,6 @@ enum ManagerSkill {
   KZ
 }
 
-enum UserRole {
-  ADMIN
-  OFFICE_ADMIN
-  MANAGER
-}
-
 model Office {
   id        String    @id @default(cuid())
   name      String
@@ -68,7 +62,6 @@ model Manager {
   id                 String               @id @default(cuid())
   fullName           String
   position           ManagerPosition
-  userRole           UserRole
   officeId           String
   office             Office               @relation(fields: [officeId], references: [id])
   skills             ManagerSkill[]

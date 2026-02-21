@@ -43,7 +43,6 @@ export class ManagerImportService {
                     data: {
                         fullName,
                         position: mapPosition(positionRaw),
-                        userRole: 'MANAGER',
                         officeId: office.id,
                         skills: mapSkills(skillsRaw),
                     },
