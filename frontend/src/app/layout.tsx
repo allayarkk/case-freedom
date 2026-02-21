@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -18,12 +19,17 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark">
       <body className={`${inter.className} bg-[#0d161d] text-[#cbd3d9]`}>
-        <div className="flex h-screen w-full overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-hidden">
-            {children}
-          </main>
-        </div>
+        <SidebarProvider defaultOpen={false}>
+          <div className="flex h-screen w-full overflow-hidden">
+            <AppSidebar />
+            <main className="flex-1 overflow-auto relative">
+              <div className="absolute top-4 left-4 z-50">
+                <SidebarTrigger className="text-[#5b6f7c] hover:text-white" />
+              </div>
+              {children}
+            </main>
+          </div>
+        </SidebarProvider>
       </body>
     </html>
   );
