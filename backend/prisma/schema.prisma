@@ -75,30 +75,42 @@ model Manager {
 }
 
 model Ticket {
-  id             String           @id @default(cuid())
-  clientGuid     String
-  gender         String
-  dateOfBirth    DateTime
-  description    String           @db.Text
-  attachments    String?
-  segment        Segment
-  country        String
-  oblast         String
-  city           String
-  street         String
-  houseNumber    String
-  managerId      String?
-  manager        Manager?         @relation(fields: [managerId], references: [id])
-  officeId       String?
-  office         Office?          @relation(fields: [officeId], references: [id])
-  analysis       TicketAnalysis?
-  assignmentLogs AssignmentLog[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  clientGuid       String
+  gender           String
+  dateOfBirth      DateTime
+  description      String           @db.Text
+  attachments      String?
+  segment          Segment
+  country          String
+  oblast           String
+  city             String
+  street           String
+  houseNumber      String
+  managerId        String?
+  manager          Manager?         @relation(fields: [managerId], references: [id])
+  officeId         String?
+  office           Office?          @relation(fields: [officeId], references: [id])
+  importSessionId  String?
+  importSession    ImportSession?   @relation(fields: [importSessionId], references: [id])
+  analysis         TicketAnalysis?
+  assignmentLogs   AssignmentLog[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([segment])
   @@index([managerId])
   @@index([officeId])
+  @@index([importSessionId])
+}
+
+model ImportSession {
+  id            String   @id @default(cuid())
+  name          String?
+  totalTickets  Int      @default(0)
+  status        String   @default("COMPLETED") // COMPLETED, FAILED, PROCESSING
+  tickets       Ticket[]
+  createdAt     DateTime @default(now())
 }
 
 model TicketAnalysis {
@@ -112,8 +124,12 @@ model TicketAnalysis {
   summary   String     @db.Text
   latitude  Float?
   longitude Float?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  aiDuration      Int?       @default(0)
+  geoDuration     Int?       @default(0)
+  routingDuration Int?       @default(0)
+  totalDuration   Int?       @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 }
 
 model AssignmentLog {

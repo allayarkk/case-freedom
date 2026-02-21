@@ -26,7 +26,6 @@ function getVal(row: Record<string, string>, keys: string[]): string {
 
 /**
  * Генерирует default AI result для случаев без текста.
- * Это показывает устойчивость системы к edge-cases.
  */
 function getDefaultAnalysis(segment: string, hasAttachment: boolean): AIAnalysisResult {
     return {
@@ -64,7 +63,9 @@ export class TicketService {
         city: string;
         street: string;
         houseNumber: string;
+        importSessionId?: string;
     }) {
+        const totalStart = performance.now();
         const segment = mapSegment(data.segment);
         const description = data.description || '';
         const attachments = data.attachments || null;
@@ -83,81 +84,91 @@ export class TicketService {
                 city: data.city,
                 street: data.street || '',
                 houseNumber: data.houseNumber || '',
+                importSessionId: data.importSessionId || null,
             },
         });
 
         // 2. AI анализ + Геокодинг параллельно
         const address = `${data.country || 'Казахстан'}, ${data.city}, ${data.street} ${data.houseNumber}`.trim();
 
-        let aiResult: AIAnalysisResult;
+        let aiDuration = 0;
+        let geoDuration = 0;
 
-        if (description.trim()) {
-            // Есть текст — отправляем на AI анализ (с вложениями если есть)
-            const [aiRes, geoResult] = await Promise.all([
-                this.ai.analyzeTicket(description, attachments),
-                this.geo.getCoordinates(address),
-            ]);
-            aiResult = aiRes;
+        const measureAI = async (): Promise<AIAnalysisResult> => {
+            if (!description.trim()) {
+                return getDefaultAnalysis(segment, !!attachments);
+            }
+            const s = performance.now();
+            const res = await this.ai.analyzeTicket(description, attachments);
+            aiDuration = Math.round(performance.now() - s);
+            return res;
+        };
 
-            // Сохраняем геокоординаты
-            await prisma.ticketAnalysis.create({
-                data: {
-                    ticketId: ticket.id,
-                    type: aiResult.type,
-                    sentiment: aiResult.sentiment,
-                    priority: aiResult.priority,
-                    language: aiResult.language,
-                    summary: aiResult.summary,
-                    latitude: geoResult?.lat ?? null,
-                    longitude: geoResult?.lng ?? null,
-                },
-            });
-        } else {
-            // Нет текста — default analysis + geo параллельно
-            aiResult = getDefaultAnalysis(segment, !!attachments);
+        const measureGeo = async () => {
+            const s = performance.now();
+            const res = await this.geo.getCoordinates(address);
+            geoDuration = Math.round(performance.now() - s);
+            return res;
+        };
 
-            const geoResult = await this.geo.getCoordinates(address);
+        const [aiResult, geoResult] = await Promise.all([measureAI(), measureGeo()]);
 
-            await prisma.ticketAnalysis.create({
-                data: {
-                    ticketId: ticket.id,
-                    type: aiResult.type,
-                    sentiment: aiResult.sentiment,
-                    priority: aiResult.priority,
-                    language: aiResult.language,
-                    summary: aiResult.summary,
-                    latitude: geoResult?.lat ?? null,
-                    longitude: geoResult?.lng ?? null,
-                },
-            });
-        }
-
-        // 3. Маршрутизация → назначение менеджера
+        // 3. Маршрутизация
+        const routingStart = performance.now();
         const routing = await this.routing.findBestManager(ticket.id, segment, aiResult);
+        const routingDuration = Math.round(performance.now() - routingStart);
+
+        // 4. Считаем Total (без учета записи в БД в конце, или с ней? Лучше до момента когда всё готово)
+        const totalDuration = Math.round(performance.now() - totalStart);
+
+        // 5. Сохраняем анализ и тайминги
+        await prisma.ticketAnalysis.create({
+            data: {
+                ticketId: ticket.id,
+                type: aiResult.type,
+                sentiment: aiResult.sentiment,
+                priority: aiResult.priority,
+                language: aiResult.language,
+                summary: aiResult.summary,
+                latitude: geoResult?.lat ?? null,
+                longitude: geoResult?.lng ?? null,
+                aiDuration,
+                geoDuration,
+                routingDuration,
+                totalDuration,
+            },
+        });
+
+        // 6. Обновляем тикет
         await prisma.ticket.update({
             where: { id: ticket.id },
             data: { managerId: routing.managerId, officeId: routing.officeId },
         });
 
-        // 4. Лог назначения (assignedById = toManagerId для автоматических назначений)
+        // 7. Лог назначения
         await prisma.assignmentLog.create({
             data: {
                 ticketId: ticket.id,
                 toManagerId: routing.managerId,
-                assignedById: routing.managerId,  // система назначает автоматически
+                assignedById: routing.managerId,
                 reason: routing.reason,
             },
         });
 
-        // 5. Увеличиваем счётчик активных тикетов
+        // 8. Увеличиваем счётчик
         await this.managerRepo.updateActiveCount(routing.managerId, 1);
 
-        // Возвращаем полный результат для real-time обновлений
         const fullTicket = await this.ticketRepo.findById(ticket.id);
 
         return {
             ticket: fullTicket,
             analysis: aiResult,
+            performance: {
+                ai: aiDuration,
+                geo: geoDuration,
+                routing: routingDuration,
+                total: totalDuration,
+            },
             routing: {
                 managerId: routing.managerId,
                 officeId: routing.officeId,
@@ -166,98 +177,43 @@ export class TicketService {
         };
     }
 
-    /**
-     * Batch import из CSV — обрабатывает записи последовательно (1 by 1).
-     * Каждая строка ≤ 10 секунд (AI + Geo параллельно внутри строки).
-     */
     async importTickets(csvData: Record<string, string>[]) {
         let processed = 0, failed = 0;
-        const results: Array<{
-            index: number;
-            status: 'ok' | 'error';
-            ticketId?: string;
-            reason?: string;
-            error?: string;
-        }> = [];
-
-        console.log(`[Import] Batch: ${csvData.length} records`);
+        const results: any[] = [];
 
         for (const row of csvData) {
             const idx = processed + failed + 1;
             try {
-                const segment = mapSegment(getVal(row, ['Сегмент клиента', 'Сегмент']));
-                const description = getVal(row, ['Описание', 'Description']);
-                const city = getVal(row, ['Населённый пункт', 'Город', 'City']);
-                const clientGuid = getVal(row, ['GUID клиента', 'GUID', 'clientGuid']);
-                const attachments = getVal(row, ['Вложения', 'Attachments']) || null;
-
-                if (!clientGuid) {
-                    results.push({ index: idx, status: 'error', error: 'Нет GUID клиента' });
-                    failed++;
-                    continue;
-                }
-
-                // Обработка через единый pipeline (включая пустые описания)
                 const result = await this.processSingleTicket({
-                    clientGuid,
+                    clientGuid: getVal(row, ['GUID клиента', 'GUID', 'clientGuid']),
                     gender: getVal(row, ['Пол клиента', 'Пол']),
                     dateOfBirth: getVal(row, ['Дата рождения']),
-                    description,
-                    attachments,
-                    segment,
-                    country: getVal(row, ['Страна']) || 'Казахстан',
-                    oblast: getVal(row, ['Область']) || '',
-                    city,
-                    street: getVal(row, ['Улица']) || '',
-                    houseNumber: getVal(row, ['Дом']) || '',
+                    description: getVal(row, ['Описание', 'Description']),
+                    attachments: getVal(row, ['Вложения', 'Attachments']),
+                    segment: getVal(row, ['Сегмент клиента', 'Сегмент']),
+                    country: getVal(row, ['Страна']),
+                    oblast: getVal(row, ['Область']),
+                    city: getVal(row, ['Населённый пункт', 'Город']),
+                    street: getVal(row, ['Улица']),
+                    houseNumber: getVal(row, ['Дом']),
                 });
-
-                console.log(`[#${idx}] ✅ ${result.routing.reason}`);
-                results.push({
-                    index: idx,
-                    status: 'ok',
-                    ticketId: result.ticket?.id,
-                    reason: result.routing.reason,
-                });
+                results.push({ index: idx, status: 'ok', ticketId: result.ticket?.id });
                 processed++;
-            } catch (err: unknown) {
-                const errorMsg = err instanceof Error ? err.message : String(err);
-                console.error(`[#${idx}] ❌`, errorMsg);
-                results.push({ index: idx, status: 'error', error: errorMsg });
+            } catch (err) {
                 failed++;
+                results.push({ index: idx, status: 'error', error: String(err) });
             }
         }
-
         return { processed, failed, total: csvData.length, results };
     }
 
-    async getTickets(
-        filters: { managerId?: string; officeId?: string; segment?: string },
-        pagination: { skip: number; take: number }
-    ) {
-        return this.ticketRepo.findMany(filters, pagination);
-    }
+    async getTickets(f: any, p: any) { return this.ticketRepo.findMany(f, p); }
+    async getTicketById(id: string) { return this.ticketRepo.findById(id); }
 
-    async getTicketById(id: string) {
-        return this.ticketRepo.findById(id);
-    }
-
-    /**
-     * Закрытие тикета — уменьшает activeTicketCount менеджера.
-     */
     async closeTicket(id: string) {
-        const ticket = await prisma.ticket.findUnique({
-            where: { id },
-            select: { managerId: true },
-        });
-
+        const ticket = await prisma.ticket.findUnique({ where: { id }, select: { managerId: true } });
         if (!ticket) throw new Error('Ticket not found');
-
-        // Уменьшаем нагрузку менеджера
-        if (ticket.managerId) {
-            await this.managerRepo.updateActiveCount(ticket.managerId, -1);
-        }
-
+        if (ticket.managerId) await this.managerRepo.updateActiveCount(ticket.managerId, -1);
         return prisma.ticket.update({
             where: { id },
             data: { updatedAt: new Date() },

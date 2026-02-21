@@ -32,6 +32,10 @@ export const analyticsService = {
     getKanbanStats: (officeId?: string) =>
         api.get('/analytics/kanban', { params: officeId ? { officeId } : undefined }),
     getWorkload: () => api.get('/analytics/workload'),
+    getImportHistory: () => api.get('/analytics/imports'),
+    getImportSessionDetail: (id: string) => api.get(`/analytics/imports/${id}`),
+    createImportSession: (data: { totalTickets: number; name?: string }) => api.post('/analytics/imports', data),
+    updateImportSessionStatus: (id: string, status: string) => api.patch(`/analytics/imports/${id}`, { status }),
 };
 
 export default api;

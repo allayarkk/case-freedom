@@ -26,8 +26,12 @@ router.get('/offices', importCtrl.getOffices);
 router.post('/import/offices', importCtrl.importOffices);
 router.post('/import/managers', importCtrl.importManagers);
 
-// Analytics
+// Analytics & History
 router.get('/analytics/kanban', c.analyticsController.getKanbanStats);
 router.get('/analytics/workload', c.analyticsController.getWorkload);
+router.get('/analytics/imports', c.analyticsController.getImportHistory);
+router.get('/analytics/imports/:id', c.analyticsController.getImportSessionDetail);
+router.post('/analytics/imports', c.analyticsController.createImportSession);
+router.patch('/analytics/imports/:id', c.analyticsController.updateImportSessionStatus);
 
 export default router;

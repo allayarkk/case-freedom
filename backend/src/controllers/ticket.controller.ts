@@ -24,7 +24,8 @@ export class TicketController {
         try {
             const {
                 clientGuid, gender, dateOfBirth, description,
-                attachments, segment, country, oblast, city, street, houseNumber
+                attachments, segment, country, oblast, city, street, houseNumber,
+                importSessionId
             } = req.body;
 
             if (!clientGuid) {
@@ -44,6 +45,7 @@ export class TicketController {
                 city: city || '',
                 street: street || '',
                 houseNumber: houseNumber || '',
+                importSessionId
             });
 
             res.status(201).json(successResponse(result));

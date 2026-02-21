@@ -14,6 +14,8 @@ import {
     Route,
     ShieldAlert,
     ArrowRight,
+    Zap,
+    Cpu,
 } from 'lucide-react';
 import { ticketService } from '@/services/api';
 
@@ -81,7 +83,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
 
                     <div className="flex-1 overflow-hidden flex">
                         {/* Sidebar (Attributes) */}
-                        <div className="w-80 border-r border-[#233642] bg-[#0d161d]/30 overflow-y-auto p-6 space-y-8 flex-shrink-0">
+                        <div className="w-80 border-r border-[#233642] bg-[#0d161d]/30 overflow-y-auto p-6 space-y-8 flex-shrink-0 custom-scrollbar">
                             {/* Responsible section */}
                             <section>
                                 <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-widest mb-4">Ответственные</h4>
@@ -108,6 +110,43 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                     </div>
                                 </div>
                             </section>
+
+                            {/* Ticket Performance Monitor (Moved to sidebar for constant visibility) */}
+                            {ticket?.analysis?.totalDuration > 0 && (
+                                <section>
+                                    <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <Cpu size={12} className="text-amber-500" />
+                                        Engine Performance
+                                    </h4>
+                                    <div className="bg-[#182833] border border-amber-500/20 p-4 rounded-xl space-y-4 shadow-lg shadow-amber-500/5">
+                                        <div className="space-y-2">
+                                            {[
+                                                { label: 'AI Анализ', val: ticket.analysis.aiDuration, color: 'bg-primary' },
+                                                { label: 'Геокодинг', val: ticket.analysis.geoDuration, color: 'bg-amber-500' },
+                                                { label: 'Маршрутизация', val: ticket.analysis.routingDuration, color: 'bg-emerald-500' },
+                                            ].map(stat => (
+                                                <div key={stat.label}>
+                                                    <div className="flex justify-between text-[9px] font-bold uppercase mb-1">
+                                                        <span className="text-[#5b6f7c]">{stat.label}</span>
+                                                        <span className="text-white font-mono">{stat.val}ms</span>
+                                                    </div>
+                                                    <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden">
+                                                        <motion.div
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${Math.min(100, (stat.val / ticket.analysis.totalDuration) * 100)}%` }}
+                                                            className={`h-full ${stat.color}`}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="pt-2 border-t border-[#233642] flex justify-between items-center">
+                                            <span className="text-[9px] text-[#5b6f7c] font-black uppercase">TOTAL</span>
+                                            <span className="text-sm font-black text-white font-mono">{ticket.analysis.totalDuration}ms</span>
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Client Segment */}
                             <section>
@@ -202,7 +241,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                             P{ticket?.analysis?.priority || 0}
                                                         </span>
                                                     </div>
-                                                    <div className={`bg-[#111b21]/50 px-3 py-1.5 rounded-lg border border-[#233642] text-[11px] ${ticket?.analysis?.sentiment === 'NEGATIVE' ? 'border-red-500/30' :
+                                                    <div className={`bg-[#111121]/50 px-3 py-1.5 rounded-lg border border-[#233642] text-[11px] ${ticket?.analysis?.sentiment === 'NEGATIVE' ? 'border-red-500/30' :
                                                         ticket?.analysis?.sentiment === 'POSITIVE' ? 'border-green-500/30' : ''
                                                         }`}>
                                                         <span className="text-[#5b6f7c]">Тональность: </span>
