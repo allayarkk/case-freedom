@@ -4,16 +4,16 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X,
-    User,
     Building2,
     MapPin,
     BrainCircuit,
     Clock,
-    AlertCircle,
     CheckCircle2,
-    Calendar,
     MessageSquare,
-    ExternalLink
+    ExternalLink,
+    Route,
+    ShieldAlert,
+    ArrowRight,
 } from 'lucide-react';
 import { ticketService } from '@/services/api';
 
@@ -39,6 +39,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
     }, [ticketId]);
 
     if (!ticketId) return null;
+
+    const assignmentLog = ticket?.assignmentLogs?.[0];
+    const reasonParts = assignmentLog?.reason?.split(' | ') || [];
 
     return (
         <AnimatePresence>
@@ -89,7 +92,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-[11px] font-bold text-[#cbd3d9]">{ticket?.manager?.fullName || 'Менеджер не назначен'}</span>
-                                            <span className="text-[9px] text-[#5b6f7c] uppercase font-bold tracking-tight">Менеджер</span>
+                                            <span className="text-[9px] text-[#5b6f7c] uppercase font-bold tracking-tight">
+                                                {ticket?.manager?.position?.replace(/_/g, ' ') || 'Менеджер'}
+                                            </span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 opacity-80">
@@ -135,16 +140,22 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                             </section>
 
                             <section>
-                                <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-widest mb-4">Статистика AI</h4>
+                                <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-widest mb-4">AI Атрибуты</h4>
                                 <div className="bg-[#182833]/50 p-4 rounded-lg border border-[#233642] divide-y divide-[#233642]">
                                     <div className="pb-3 flex justify-between items-center">
+                                        <span className="text-[10px] text-[#5b6f7c]">Тип</span>
+                                        <span className="text-[10px] font-black text-[#cbd3d9] uppercase">{ticket?.analysis?.type || '—'}</span>
+                                    </div>
+                                    <div className="py-3 flex justify-between items-center">
                                         <span className="text-[10px] text-[#5b6f7c]">Приоритет</span>
-                                        <span className="text-sm font-black text-[#3489db]">P{ticket?.analysis?.priority || 0}</span>
+                                        <span className={`text-sm font-black ${(ticket?.analysis?.priority ?? 0) >= 8 ? 'text-red-400' :
+                                            (ticket?.analysis?.priority ?? 0) >= 6 ? 'text-amber-400' : 'text-[#3489db]'
+                                            }`}>P{ticket?.analysis?.priority || 0}</span>
                                     </div>
                                     <div className="py-3 flex justify-between items-center">
                                         <span className="text-[10px] text-[#5b6f7c]">Тональность</span>
                                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${ticket?.analysis?.sentiment === 'NEGATIVE' ? 'text-red-400 bg-red-400/10' :
-                                                ticket?.analysis?.sentiment === 'POSITIVE' ? 'text-green-400 bg-green-400/10' : 'text-slate-400 bg-slate-400/10'
+                                            ticket?.analysis?.sentiment === 'POSITIVE' ? 'text-green-400 bg-green-400/10' : 'text-slate-400 bg-slate-400/10'
                                             }`}>{ticket?.analysis?.sentiment || '—'}</span>
                                     </div>
                                     <div className="pt-3 flex justify-between items-center">
@@ -157,7 +168,6 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
 
                         {/* Main Feed Area */}
                         <div className="flex-1 bg-[#111b21] overflow-y-auto custom-scrollbar flex flex-col">
-                            {/* Logic Summary Banner */}
                             <div className="p-8 pb-4">
                                 {loading ? (
                                     <div className="animate-pulse space-y-4">
@@ -181,33 +191,75 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                 <p className="text-base font-bold text-[#cbd3d9] leading-relaxed mb-4">
                                                     {ticket?.analysis?.summary || 'Система производит анализ обращения...'}
                                                 </p>
-                                                <div className="bg-[#111b21]/50 p-3 rounded-lg border border-[#233642] italic text-[11px] text-[#5b6f7c]">
-                                                    Тип: <span className="text-[#cbd3d9] font-bold uppercase">{ticket?.analysis?.type || '—'}</span>
+                                                <div className="flex gap-2 flex-wrap">
+                                                    <div className="bg-[#111b21]/50 px-3 py-1.5 rounded-lg border border-[#233642] text-[11px]">
+                                                        <span className="text-[#5b6f7c]">Тип: </span>
+                                                        <span className="text-[#cbd3d9] font-bold uppercase">{ticket?.analysis?.type || '—'}</span>
+                                                    </div>
+                                                    <div className="bg-[#111b21]/50 px-3 py-1.5 rounded-lg border border-[#233642] text-[11px]">
+                                                        <span className="text-[#5b6f7c]">Приоритет: </span>
+                                                        <span className={`font-bold ${(ticket?.analysis?.priority ?? 0) >= 8 ? 'text-red-400' : 'text-[#3489db]'}`}>
+                                                            P{ticket?.analysis?.priority || 0}
+                                                        </span>
+                                                    </div>
+                                                    <div className={`bg-[#111b21]/50 px-3 py-1.5 rounded-lg border border-[#233642] text-[11px] ${ticket?.analysis?.sentiment === 'NEGATIVE' ? 'border-red-500/30' :
+                                                        ticket?.analysis?.sentiment === 'POSITIVE' ? 'border-green-500/30' : ''
+                                                        }`}>
+                                                        <span className="text-[#5b6f7c]">Тональность: </span>
+                                                        <span className={`font-bold ${ticket?.analysis?.sentiment === 'NEGATIVE' ? 'text-red-400' :
+                                                            ticket?.analysis?.sentiment === 'POSITIVE' ? 'text-green-400' : 'text-slate-400'
+                                                            }`}>{ticket?.analysis?.sentiment || '—'}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Routing Logic Card */}
+                                        {/* Routing Logic Card — Explainable */}
                                         <div className="bg-[#111b21] border border-primary/30 p-6 rounded-xl border-dashed">
-                                            <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex items-center gap-2 mb-4">
                                                 <div className="p-1.5 bg-primary/20 rounded flex items-center justify-center">
-                                                    <Clock size={16} className="text-primary" />
+                                                    <Route size={16} className="text-primary" />
                                                 </div>
-                                                <h3 className="text-xs font-black text-primary uppercase tracking-wider">Логика распределения FIRE</h3>
+                                                <h3 className="text-xs font-black text-primary uppercase tracking-wider">Логика маршрутизации FIRE</h3>
                                             </div>
-                                            <div className="space-y-4">
-                                                <div className="flex gap-4 items-start">
-                                                    <div className="flex flex-col items-center gap-1 mt-1">
-                                                        <div className="w-2 h-2 rounded-full bg-primary" />
-                                                        <div className="w-[1px] h-6 bg-[#233642]" />
-                                                        <div className="w-2 h-2 rounded-full bg-[#3489db]" />
-                                                    </div>
-                                                    <p className="text-[12px] text-[#cbd3d9] leading-relaxed font-medium pt-0.5">
-                                                        {ticket?.logs?.[0]?.reason || 'Обращение распределено на основе географической близости и навыков менеджера.'}
-                                                    </p>
+
+                                            {reasonParts.length > 0 ? (
+                                                <div className="space-y-3">
+                                                    {reasonParts.map((part: string, i: number) => (
+                                                        <div key={i} className="flex gap-3 items-start">
+                                                            <div className="flex flex-col items-center gap-1 mt-1.5 shrink-0">
+                                                                <div className={`w-2.5 h-2.5 rounded-full ${i === 0 ? 'bg-primary' :
+                                                                    i === reasonParts.length - 1 ? 'bg-emerald-400' : 'bg-[#3489db]'
+                                                                    }`} />
+                                                                {i < reasonParts.length - 1 && (
+                                                                    <div className="w-[1px] h-4 bg-[#233642]" />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <p className="text-[12px] text-[#cbd3d9] leading-relaxed font-medium">
+                                                                    {part.trim()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <p className="text-[12px] text-[#5b6f7c] italic">
+                                                    Данные о маршрутизации недоступны.
+                                                </p>
+                                            )}
                                         </div>
+
+                                        {/* Attachments */}
+                                        {ticket?.attachments && (
+                                            <div className="bg-[#182833]/30 border border-[#233642] p-4 rounded-xl">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <ShieldAlert size={14} className="text-amber-400" />
+                                                    <h3 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-widest">Вложения</h3>
+                                                </div>
+                                                <p className="text-[11px] text-[#cbd3d9] font-mono">{ticket.attachments}</p>
+                                            </div>
+                                        )}
 
                                         {/* Original Message */}
                                         <div className="space-y-3">
@@ -217,10 +269,31 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                             </div>
                                             <div className="bg-[#182833]/30 border border-[#233642] p-6 rounded-xl min-h-[100px]">
                                                 <p className="text-[13px] text-[#cbd3d9] leading-relaxed italic">
-                                                    "{ticket?.description}"
+                                                    &quot;{ticket?.description || 'Описание отсутствует'}&quot;
                                                 </p>
                                             </div>
                                         </div>
+
+                                        {/* Assignment History */}
+                                        {ticket?.assignmentLogs?.length > 1 && (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2 px-2 text-[#5b6f7c]">
+                                                    <Clock size={14} />
+                                                    <h3 className="text-[10px] font-bold uppercase tracking-widest">История назначений</h3>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {ticket.assignmentLogs.map((log: any, i: number) => (
+                                                        <div key={log.id} className="flex items-center gap-3 text-[11px] text-[#cbd3d9] bg-[#182833]/20 p-3 rounded-lg border border-[#233642]/50">
+                                                            <span className="text-[#5b6f7c] font-mono text-[10px] shrink-0">
+                                                                {new Date(log.createdAt).toLocaleString('ru-RU')}
+                                                            </span>
+                                                            <ArrowRight size={12} className="text-[#5b6f7c] shrink-0" />
+                                                            <span className="font-medium">{log.toManager?.fullName || '—'}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -106,13 +106,7 @@ function DashboardContent() {
                                 </span>
                             </div>
 
-                            {col.key === 0 && groupingMode === 'priority' && (
-                                <div className="px-3 mb-4">
-                                    <div className="border border-dashed border-[#233642] p-2.5 rounded text-[11px] text-[#5b6f7c] text-center font-bold hover:border-[#3489db] hover:text-[#3489db] cursor-pointer transition-all">
-                                        Быстрое добавление
-                                    </div>
-                                </div>
-                            )}
+
 
                             <div className="flex-1 overflow-y-auto px-3 pb-8 custom-scrollbar">
                                 {col.items.map(t => <TicketCard key={t.id} ticket={t} />)}

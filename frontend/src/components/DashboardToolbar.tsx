@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, MoreHorizontal, Plus, LayoutGrid, Building2, User } from 'lucide-react';
+import { Search, MoreHorizontal, LayoutGrid, Building2, User } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -72,8 +72,8 @@ export function DashboardToolbar({
                                                 setShowMenu(false);
                                             }}
                                             className={`w-full text-left px-4 py-2.5 text-[11px] transition-all flex items-center justify-between group ${groupingMode === mode.id
-                                                    ? 'bg-primary/10 text-primary font-bold'
-                                                    : 'text-[#cbd3d9] hover:bg-white/5'
+                                                ? 'bg-primary/10 text-primary font-bold'
+                                                : 'text-[#cbd3d9] hover:bg-white/5'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
@@ -82,22 +82,14 @@ export function DashboardToolbar({
                                             </div>
                                         </button>
                                     ))}
-                                    <div className="border-t border-[#233642] mt-1 pt-1">
-                                        <button className="w-full text-left px-4 py-2.5 text-[11px] text-[#cbd3d9] hover:bg-white/5 flex items-center gap-3">
-                                            <LayoutGrid size={14} className="text-[#5b6f7c]" />
-                                            Настроить воронку
-                                        </button>
-                                    </div>
+
                                 </motion.div>
                             </>
                         )}
                     </AnimatePresence>
                 </div>
 
-                <button className="bg-[#3489db] hover:bg-[#3b9cf7] text-white px-5 py-2 rounded flex items-center gap-2 text-[11px] font-black shadow-lg shadow-primary/10 transition-all uppercase tracking-tight active:scale-95">
-                    <Plus size={16} strokeWidth={3} />
-                    Новое обращение
-                </button>
+
             </div>
         </div>
     );

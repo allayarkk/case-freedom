@@ -8,7 +8,9 @@ const api = axios.create({
 export const ticketService = {
     getTickets: (params?: Record<string, unknown>) => api.get('/tickets', { params }),
     getTicketById: (id: string) => api.get(`/tickets/${id}`),
+    createTicket: (data: Record<string, unknown>) => api.post('/tickets', data),
     importTickets: (csv: string) => api.post('/tickets/import', { csv }),
+    closeTicket: (id: string) => api.patch(`/tickets/${id}/close`),
 };
 
 export const managerService = {

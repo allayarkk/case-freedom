@@ -4,14 +4,10 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ticketService } from '@/services/api';
 import {
-    FileText,
     Search,
-    Filter,
     ChevronRight,
     MapPin,
     BrainCircuit,
-    Plus,
-    ArrowUpDown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TicketDetail } from '@/components/TicketDetail';
@@ -79,20 +75,6 @@ function TicketsContent() {
                         <div className="text-[11px] text-[#5b6f7c] font-bold uppercase tracking-tighter">
                             {filteredTickets.length} <span className="opacity-60 font-medium">записей</span>
                         </div>
-                        <div className="h-6 w-[1px] bg-[#233642]" />
-                        <button className="text-[#5b6f7c] hover:text-white transition-colors p-2 flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-tight">
-                            <Filter size={14} />
-                            Фильтры
-                        </button>
-                        <button className="text-[#3489db] hover:text-[#3b9cf7] transition-colors p-2 flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-tight">
-                            <ArrowUpDown size={14} />
-                            Сортировка
-                        </button>
-                        <div className="h-6 w-[1px] bg-[#233642]" />
-                        <button className="bg-[#3489db] hover:bg-[#3b9cf7] text-white px-5 py-2 rounded flex items-center gap-2 text-[11px] font-black shadow-lg shadow-primary/10 transition-all uppercase tracking-tight active:scale-95">
-                            <Plus size={16} strokeWidth={3} />
-                            Добавить
-                        </button>
                     </div>
                 </div>
 
@@ -129,7 +111,7 @@ function TicketsContent() {
                                     </td>
                                     <td className="px-6 py-4 max-w-md">
                                         <p className="text-[11px] font-medium text-[#cbd3d9] leading-relaxed line-clamp-2 italic opacity-90">
-                                            "{ticket.description}"
+                                            &quot;{ticket.description}&quot;
                                         </p>
                                     </td>
                                     <td className="px-6 py-4">
@@ -143,7 +125,7 @@ function TicketsContent() {
                                                 </div>
                                                 <div className="flex gap-2 text-[9px] font-bold">
                                                     <span className={`${ticket.analysis.sentiment === 'NEGATIVE' ? 'text-red-400' :
-                                                            ticket.analysis.sentiment === 'POSITIVE' ? 'text-green-400' : 'text-slate-500'
+                                                        ticket.analysis.sentiment === 'POSITIVE' ? 'text-green-400' : 'text-slate-500'
                                                         }`}>
                                                         {ticket.analysis.sentiment}
                                                     </span>
