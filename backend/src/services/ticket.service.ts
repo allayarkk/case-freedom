@@ -22,6 +22,18 @@ function mapSegment(val: string | undefined): SegmentValue {
     return 'MASS';
 }
 
+/**
+ * Utility to find value in record regardless of case or trailing spaces in keys
+ */
+function getVal(row: Record<string, string>, possibleKeys: string[]): string {
+    const rowKeys = Object.keys(row);
+    for (const pk of possibleKeys) {
+        const found = rowKeys.find(rk => rk.trim().toLowerCase() === pk.toLowerCase());
+        if (found) return row[found];
+    }
+    return '';
+}
+
 export class TicketService {
     constructor(
         private ticketRepo: TicketRepository,
@@ -35,42 +47,53 @@ export class TicketService {
         let processed = 0;
         let failed = 0;
 
+        console.log(`[Import] Processing batch of ${csvData.length} records`);
+
         for (const row of csvData) {
+            const idx = processed + failed + 1;
             try {
-                const segment = mapSegment(row['Сегмент клиента'] ?? row['Сегмент']);
-                const description = row['Описание'] ?? '';
-                const country = row['Страна'] ?? '';
-                const oblast = row['Область'] ?? '';
-                const city = row['Населённый пункт'] ?? row['Город'] ?? '';
-                const street = row['Улица'] ?? '';
-                const houseNumber = row['Дом'] ?? '';
+                const segment = mapSegment(getVal(row, ['Сегмент клиента', 'Сегмент']));
+                const description = getVal(row, ['Описание', 'Description', 'Описание ']);
+                const city = getVal(row, ['Населённый пункт', 'Город', 'City']);
+                const clientGuid = getVal(row, ['GUID клиента', 'GUID', 'clientGuid']);
+
+                if (!description || !clientGuid) {
+                    console.log(`[#${idx}] Skipping empty or invalid row`);
+                    failed++;
+                    continue;
+                }
+
+                console.log(`[#${idx}] Processing ticket for client ${clientGuid}`);
 
                 // 1. Create ticket
                 const ticket = await prisma.ticket.create({
                     data: {
-                        clientGuid: row['GUID клиента'] ?? row['GUID'] ?? '',
-                        gender: row['Пол клиента'] ?? row['Пол'] ?? '',
-                        dateOfBirth: row['Дата рождения'] ? new Date(row['Дата рождения']) : new Date(),
+                        clientGuid,
+                        gender: getVal(row, ['Пол клиента', 'Пол']),
+                        dateOfBirth: getVal(row, ['Дата рождения']) ? new Date(getVal(row, ['Дата рождения'])) : new Date(),
                         description,
-                        attachments: row['Вложения'] ?? null,
+                        attachments: getVal(row, ['Вложения']) || null,
                         segment,
-                        country,
-                        oblast,
+                        country: getVal(row, ['Страна']) || 'Казахстан',
+                        oblast: getVal(row, ['Область']) || '',
                         city,
-                        street,
-                        houseNumber,
+                        street: getVal(row, ['Улица']) || '',
+                        houseNumber: getVal(row, ['Дом']) || '',
                     },
                 });
+                console.log(`[#${idx}] Database record created: ${ticket.id}`);
 
                 // 2. AI + Geo in parallel
-                const address = `${country}, ${oblast}, ${city}, ${street} ${houseNumber}`.trim();
+                const address = `${getVal(row, ['Страна']) || 'Казахстан'}, ${getVal(row, ['Область'])}, ${city}, ${getVal(row, ['Улица'])} ${getVal(row, ['Дом'])}`.trim();
+
+                console.log(`[#${idx}] Requesting AI analysis for description: "${description.slice(0, 30)}..."`);
                 const [aiResult, geoResult] = await Promise.all([
                     this.aiService.analyzeTicket(description),
                     this.geoService.getCoordinates(address),
                 ]);
 
                 // 3. Save analysis
-                const analysis = await prisma.ticketAnalysis.create({
+                await prisma.ticketAnalysis.create({
                     data: {
                         ticketId: ticket.id,
                         type: aiResult.type,
@@ -82,9 +105,11 @@ export class TicketService {
                         longitude: geoResult?.lng ?? null,
                     },
                 });
+                console.log(`[#${idx}] AI Analysis saved: ${aiResult.type} | P${aiResult.priority} | Geo: ${geoResult ? 'MATCH' : 'NOT FOUND'}`);
 
                 // 4. Route
                 const routing = await this.routingService.findBestManager(ticket.id, segment, aiResult);
+                console.log(`[#${idx}] Router decision: ${routing.reason}`);
 
                 // 5. Assign
                 await prisma.ticket.update({
@@ -95,7 +120,7 @@ export class TicketService {
                     },
                 });
 
-                // 6. Log assignment (manager assigns to themselves for MVP — no auth user)
+                // 6. Log assignment
                 await prisma.assignmentLog.create({
                     data: {
                         ticketId: ticket.id,
@@ -108,10 +133,12 @@ export class TicketService {
                 // 7. Increment active count
                 await this.managerRepo.updateActiveCount(routing.managerId, 1);
 
+                console.log(`[#${idx}] ✅ Successfully assigned to ${routing.managerId}`);
+
                 processed++;
             } catch (err: unknown) {
-                const message = err instanceof Error ? err.message : 'Unknown error';
-                console.error(`Failed to process row:`, message);
+                const message = err instanceof Error ? err.stack : 'Unknown error';
+                console.error(`[#${idx}] ❌ Failed to process row:`, message);
                 failed++;
             }
         }
@@ -124,7 +151,7 @@ export class TicketService {
         pagination: { skip: number; take: number },
         user: UserContext
     ) {
-        const scopedFilters = { ...filters };
+        const scopedFilters: any = { ...filters };
         if (user.role === 'MANAGER') scopedFilters.managerId = user.id;
         else if (user.role === 'OFFICE_ADMIN' && user.officeId) scopedFilters.officeId = user.officeId;
 

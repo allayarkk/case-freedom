@@ -19,10 +19,15 @@ export class TicketController {
                 res.status(400).json({ success: false, error: { message: 'Missing csv field in request body' } });
                 return;
             }
+
+            console.log('Starting CSV import batch...');
             const data = parseCSV(csvContent) as Record<string, string>[];
             const result = await this.ticketService.importTickets(data);
+
+            console.log(`Import finished. Processed: ${result.processed}, Failed: ${result.failed}`);
             res.json(successResponse(result));
         } catch (error) {
+            console.error('Import Error in Controller:', error);
             next(error);
         }
     };

@@ -1,5 +1,4 @@
 // Global in-memory Round Robin counter per office.
-// In production this should be moved to Redis or a DB column.
 const rrCounters = new Map<string, number>();
 
 import { GeoService } from './geo.service.js';
@@ -27,10 +26,13 @@ export class RoutingService {
     ): Promise<RoutingResult> {
         const offices = await prisma.office.findMany();
 
+        if (offices.length === 0) {
+            throw new Error('No offices found in database. Please import offices first.');
+        }
+
         let targetOfficeId: string;
         let reason: string;
 
-        // Read geo coords from the already-saved TicketAnalysis record
         const ticketAnalysis = await prisma.ticketAnalysis.findUnique({ where: { ticketId } });
         const lat = ticketAnalysis?.latitude;
         const lng = ticketAnalysis?.longitude;
@@ -40,7 +42,6 @@ export class RoutingService {
             targetOfficeId = nearestOffice.id;
             reason = `Nearest office by geo: ${nearestOffice.name}`;
         } else {
-            // Fallback: 50/50 between Astana and Almaty
             const fallbacks = offices.filter(o => o.name === 'Астана' || o.name === 'Алматы');
             const chosen =
                 fallbacks.length > 0
@@ -50,23 +51,30 @@ export class RoutingService {
             reason = `Geo fallback → ${chosen.name} (50/50 rule)`;
         }
 
-        // Get managers in target office sorted by least load first
         const managers = await prisma.manager.findMany({
             where: { officeId: targetOfficeId },
             orderBy: { activeTicketCount: 'asc' },
         });
 
-        // Filter by competency rules
+        if (managers.length === 0) {
+            // Find ANY manager if target office has none
+            const anyManager = await prisma.manager.findFirst();
+            if (!anyManager) throw new Error('No managers found in database. Please import managers first.');
+
+            return {
+                managerId: anyManager.id,
+                officeId: anyManager.officeId,
+                reason: `${reason} | FAILED to find manager in office, fallback to first available: ${anyManager.fullName}`
+            };
+        }
+
         const eligible = managers.filter(m => {
-            // VIP / PRIORITY segment → manager must have VIP skill
             if ((segment === 'VIP' || segment === 'PRIORITY') && !m.skills.includes('VIP')) {
                 return false;
             }
-            // DATA_CHANGE type → only LEAD_SPECIALIST
             if (analysis.type === 'DATA_CHANGE' && m.position !== 'LEAD_SPECIALIST') {
                 return false;
             }
-            // Language skills
             if (analysis.language === 'KZ' && !m.skills.includes('KZ')) return false;
             if (analysis.language === 'ENG' && !m.skills.includes('ENG')) return false;
 
@@ -74,9 +82,7 @@ export class RoutingService {
         });
 
         if (eligible.length === 0) {
-            // Soft fallback: least-loaded in office regardless of skills
             const fallback = managers[0];
-            if (!fallback) throw new Error(`No managers found in office ${targetOfficeId}`);
             return {
                 managerId: fallback.id,
                 officeId: targetOfficeId,
@@ -84,8 +90,6 @@ export class RoutingService {
             };
         }
 
-        // Round Robin among top-2 least-loaded eligible managers
-        // State is keyed by officeId so RR is per-office
         const top2 = eligible.slice(0, 2);
         const currentIndex = rrCounters.get(targetOfficeId) ?? 0;
         const selected = top2[currentIndex % top2.length];

@@ -1,30 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppError } from '../utils/app-error.js';
-import { errorResponse } from '../utils/api-response.js';
-import { StatusCodes } from 'http-status-codes';
 
-export const errorHandler = (
-    err: Error,
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
-    console.error('[Error Handler]', err);
+export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+    // LOG THE ACTUAL ERROR TO CONSOLE
+    console.error('--- INTERNAL ERROR ---');
+    console.error('Path:', req.path);
+    console.error('Message:', err.message);
+    console.error('Stack:', err.stack);
+    console.error('----------------------');
 
-    if (err instanceof AppError) {
-        return res
-            .status(err.statusCode)
-            .json(errorResponse(err.message));
-    }
-
-    // Prisma errors or other unknown errors
-    if ((err as any).code?.startsWith('P')) {
-        return res
-            .status(StatusCodes.INTERNAL_SERVER_ERROR)
-            .json(errorResponse('Database error', 'DB_ERROR'));
-    }
-
-    return res
-        .status(StatusCodes.INTERNAL_SERVER_ERROR)
-        .json(errorResponse('Internal server error'));
+    const status = err.statusCode || 500;
+    res.status(status).json({
+        success: false,
+        error: {
+            message: err.message || 'Internal server error',
+        },
+    });
 };
