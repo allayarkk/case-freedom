@@ -14,7 +14,7 @@ export class ImportController {
         try {
             const csv = req.body.csv as string;
             if (!csv?.trim()) { res.status(400).json({ success: false, error: { message: 'Missing csv' } }); return; }
-            res.json(successResponse(await this.officeImport.importFromCSV(parseCSV(csv))));
+            res.json(successResponse(await this.officeImport.importFromCSV(parseCSV(csv) as Record<string, string>[])));
         } catch (e) { next(e); }
     };
 
@@ -22,7 +22,7 @@ export class ImportController {
         try {
             const csv = req.body.csv as string;
             if (!csv?.trim()) { res.status(400).json({ success: false, error: { message: 'Missing csv' } }); return; }
-            res.json(successResponse(await this.managerImport.importFromCSV(parseCSV(csv))));
+            res.json(successResponse(await this.managerImport.importFromCSV(parseCSV(csv) as Record<string, string>[])));
         } catch (e) { next(e); }
     };
 

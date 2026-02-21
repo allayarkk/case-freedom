@@ -36,7 +36,7 @@ export class TicketController {
 
     getTicketById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const ticket = await this.ticketService.getTicketById(req.params.id);
+            const ticket = await this.ticketService.getTicketById(String(req.params.id));
             if (!ticket) { res.status(404).json({ success: false, error: { message: 'Ticket not found' } }); return; }
             res.json(successResponse(ticket));
         } catch (error) { next(error); }

@@ -13,7 +13,7 @@ export class ManagerController {
 
     getManagerById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
-            const manager = await this.repo.findById(req.params.id);
+            const manager = await this.repo.findById(String(req.params.id));
             if (!manager) { res.status(404).json({ success: false, error: { message: 'Manager not found' } }); return; }
             res.json(successResponse(manager));
         } catch (e) { next(e); }
