@@ -11,7 +11,9 @@ router.get('/health', (_req, res) => res.json({ success: true, data: { status: '
 // Tickets
 router.get('/tickets', c.ticketController.getTickets);
 router.get('/tickets/:id', c.ticketController.getTicketById);
-router.post('/tickets/import', c.ticketController.importTickets);
+router.post('/tickets', c.ticketController.createTicket);           // Single ticket
+router.post('/tickets/import', c.ticketController.importTickets);   // Batch CSV
+router.patch('/tickets/:id/close', c.ticketController.closeTicket); // Close ticket
 
 // Managers
 router.get('/managers', c.managerController.getManagers);
