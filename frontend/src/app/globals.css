@@ -16,13 +16,14 @@
 @layer base {
   body {
     @apply bg-background text-foreground font-sans antialiased overflow-hidden;
+    font-variant-numeric: tabular-nums;
   }
 }
 
 /* Custom Scrollbar for AmoCRM look */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -36,4 +37,9 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #3489db;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #233642 transparent;
 }

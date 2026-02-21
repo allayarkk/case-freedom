@@ -1,18 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ticketService } from '@/services/api';
-import {
-    Search,
-    MoreHorizontal,
-    Plus,
-    ArrowRight,
-    Filter,
-    BarChart3,
-    Calendar,
-    ChevronDown
-} from 'lucide-react';
+import { DashboardToolbar, type GroupingMode } from '@/components/DashboardToolbar';
 
 interface Ticket {
     id: string;
@@ -20,7 +11,7 @@ interface Ticket {
     segment: string;
     city: string;
     createdAt: string;
-    manager?: { fullName: string };
+    manager?: { id: string; fullName: string };
     analysis?: {
         type: string;
         priority: number;
@@ -28,7 +19,7 @@ interface Ticket {
     };
 }
 
-const PRIORITY_LABELS: Record<number, { label: string; color: string }> = {
+const PRIORITY_MAP: Record<number, { label: string; color: string }> = {
     0: { label: 'НЕ РАЗОБРАНО', color: 'bg-slate-500' },
     10: { label: 'КРИТИЧЕСКИЙ', color: 'bg-red-500' },
     9: { label: 'ОЧЕНЬ ВЫСОКИЙ', color: 'bg-red-400' },
@@ -44,25 +35,26 @@ const PRIORITY_LABELS: Record<number, { label: string; color: string }> = {
 
 function TicketCard({ ticket }: { ticket: Ticket }) {
     const dateStr = new Date(ticket.createdAt).toLocaleDateString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
+        day: '2-digit', month: '2-digit', year: 'numeric'
     });
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
+            layout
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
             className="bg-[#182833] border border-[#233642] p-2.5 rounded shadow-sm hover:bg-[#1c2e3b] transition-colors cursor-pointer group mb-2"
         >
             <div className="flex justify-between items-start mb-1 text-[10px]">
                 <div className="flex flex-col">
-                    <span className="text-foreground/60 font-medium">
+                    <span className="text-foreground/60 font-medium truncate max-w-[120px]">
                         {ticket.manager?.fullName || 'Без менеджера'}
                     </span>
-                    <LinkProps id={ticket.id} />
+                    <span className="text-[#3489db] group-hover:underline text-[11px] font-bold mt-0.5">
+                        #{ticket.id.slice(-6).toUpperCase()}
+                    </span>
                 </div>
-                <span className="text-[#5b6f7c]">{dateStr}</span>
+                <span className="text-[#5b6f7c] tabular-nums">{dateStr}</span>
             </div>
 
             <p className="text-[11px] text-[#cbd3d9] line-clamp-2 leading-[1.3] mb-2 font-medium">
@@ -71,127 +63,113 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 
             <div className="flex items-center justify-between text-[10px]">
                 <div className="flex gap-1.5 items-center">
-                    {ticket.segment === 'VIP' && (
-                        <span className="bg-[#26c6da]/20 text-[#26c6da] px-1 rounded-[2px] font-bold text-[9px]">SAT</span>
-                    )}
+                    <span className={`px-1 rounded-[2px] font-bold text-[9px] ${ticket.segment === 'VIP' ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-500/20 text-slate-400'
+                        }`}>
+                        {ticket.segment === 'VIP' ? 'VIP' : 'MASS'}
+                    </span>
                     <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
                 </div>
                 {ticket.analysis && (
-                    <span className="text-[#5b6f7c] font-mono">P{ticket.analysis.priority}</span>
+                    <span className="text-[#5b6f7c] font-mono tabular-nums">P{ticket.analysis.priority}</span>
                 )}
             </div>
         </motion.div>
     );
 }
 
-const LinkProps = ({ id }: { id: string }) => (
-    <span className="text-[#3489db] group-hover:underline text-[11px] font-bold mt-0.5">
-        Обращение #{id.slice(-6).toUpperCase()}
-    </span>
-);
-
-export default function Dashboard() {
+export default function DashboardPage() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [groupingMode, setGroupingMode] = useState<GroupingMode>('priority');
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        async function load() {
-            try {
-                const { data } = await ticketService.getTickets({ limit: 200 } as any);
-                setTickets(data.data || []);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        }
-        load();
+        ticketService.getTickets({ limit: 1000 }).then(res => setTickets(res.data.data || []));
     }, []);
 
-    const columns = [0, 8, 5, 3, 1]; // Выборка приоритетов для демонстрации
+    const filteredTickets = useMemo(() => {
+        if (!searchTerm) return tickets;
+        const s = searchTerm.toLowerCase();
+        return tickets.filter(t =>
+            t.description.toLowerCase().includes(s) ||
+            t.manager?.fullName.toLowerCase().includes(s) ||
+            t.id.toLowerCase().includes(s)
+        );
+    }, [tickets, searchTerm]);
 
-    const byPriority: Record<number, Ticket[]> = {};
-    columns.forEach(c => byPriority[c] = tickets.filter(t => (t.analysis?.priority ?? 0) === c));
+    const columns = useMemo(() => {
+        const cols: Array<{ key: string | number; label: string; color?: string; items: Ticket[] }> = [];
+
+        if (groupingMode === 'priority') {
+            [0, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1].forEach(p => {
+                cols.push({
+                    key: p,
+                    label: PRIORITY_MAP[p].label,
+                    color: PRIORITY_MAP[p].color,
+                    items: filteredTickets.filter(t => (t.analysis?.priority ?? 0) === p)
+                });
+            });
+        } else if (groupingMode === 'office') {
+            const cities = Array.from(new Set(filteredTickets.map(t => t.city || 'Неизвестно')));
+            cities.forEach(city => {
+                cols.push({
+                    key: city,
+                    label: city.toUpperCase(),
+                    items: filteredTickets.filter(t => (t.city || 'Неизвестно') === city)
+                });
+            });
+        } else if (groupingMode === 'manager') {
+            const managers = Array.from(new Set(filteredTickets.map(t => t.manager?.fullName || 'Не назначено')));
+            managers.forEach(m => {
+                cols.push({
+                    key: m,
+                    label: m.toUpperCase(),
+                    items: filteredTickets.filter(t => (t.manager?.fullName || 'Не назначено') === m)
+                });
+            });
+        }
+
+        return cols;
+    }, [filteredTickets, groupingMode]);
 
     return (
-        <div className="flex flex-col h-screen bg-[#0d161d]">
-            {/* Top Bar */}
-            <div className="h-14 bg-[#111b21] border-b border-[#233642] flex items-center px-4 justify-between shrink-0">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-foreground font-bold text-sm uppercase tracking-wider">ВОРОНКА ОБРАЩЕНИЙ</h1>
-                    <div className="h-6 w-[1px] bg-[#233642]" />
-                    <div className="relative group">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5b6f7c]" />
-                        <input
-                            type="text"
-                            placeholder="Поиск и фильтр"
-                            className="bg-transparent text-xs pl-9 pr-4 py-1.5 rounded-md border border-transparent focus:border-[#3489db] focus:bg-[#182833] focus:outline-none w-64 transition-all"
-                        />
-                    </div>
-                </div>
+        <div className="flex flex-col h-full overflow-hidden">
+            <DashboardToolbar
+                groupingMode={groupingMode}
+                onGroupingChange={setGroupingMode}
+                onSearch={setSearchTerm}
+            />
 
-                <div className="flex items-center gap-4">
-                    <div className="text-[11px] text-[#5b6f7c]">
-                        <span className="text-foreground">{tickets.length} квикета</span>
-                    </div>
-                    <div className="h-6 w-[1px] bg-[#233642]" />
-                    <button className="text-[#5b6f7c] hover:text-white transition-colors">
-                        <MoreHorizontal size={18} />
-                    </button>
-                    <button className="bg-[#182833] border border-[#233642] px-4 py-1.5 rounded text-[11px] font-bold hover:bg-[#1c2e3b] transition-all uppercase tracking-tight">
-                        Настроить
-                    </button>
-                    <button className="bg-[#3489db] hover:bg-[#3b9cf7] text-white px-4 py-1.5 rounded flex items-center gap-2 text-[11px] font-extrabold shadow-lg shadow-primary/10 transition-all uppercase tracking-tight">
-                        <Plus size={14} />
-                        Новое обращение
-                    </button>
-                </div>
-            </div>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden flex h-full">
+                {columns.map((col) => (
+                    <div key={col.key} className="w-[280px] shrink-0 border-r border-[#233642] flex flex-col bg-[#0d161d]/50">
+                        <div className="p-4 flex flex-col items-center text-center gap-1 relative overflow-hidden">
+                            {col.color && <div className={`w-full h-1 ${col.color} absolute top-0`} />}
+                            <span className="text-[11px] font-extrabold text-[#cbd3d9] tracking-widest truncate w-full px-2">
+                                {col.label}
+                            </span>
+                            <span className="text-[10px] text-[#5b6f7c] uppercase font-bold">
+                                {col.items.length} заявок
+                            </span>
+                        </div>
 
-            {/* Board Layout */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-0 flex">
-                {columns.map((p) => {
-                    const colTickets = byPriority[p] || [];
-                    const config = PRIORITY_LABELS[p];
-
-                    return (
-                        <div
-                            key={p}
-                            className="w-[280px] shrink-0 border-r border-[#233642] flex flex-col bg-[#0d161d]/50"
-                        >
-                            {/* Column Header */}
-                            <div className="p-4 flex flex-col items-center text-center gap-1">
-                                <div className={`w-full h-1 ${config.color.replace('bg-', 'bg-')} absolute top-0`} />
-                                <span className="text-[11px] font-extrabold text-[#cbd3d9] tracking-widest leading-tight">
-                                    {config.label}
-                                </span>
-                                <span className="text-[10px] text-[#5b6f7c] uppercase font-bold">
-                                    {colTickets.length} заявок
-                                </span>
+                        {col.key === 0 && groupingMode === 'priority' && (
+                            <div className="px-3 mb-4">
+                                <div className="border border-dashed border-[#233642] p-2.5 rounded text-[11px] text-[#5b6f7c] text-center font-bold hover:border-[#3489db] hover:text-[#3489db] cursor-pointer transition-all">
+                                    Быстрое добавление
+                                </div>
                             </div>
+                        )}
 
-                            {/* Quick Add Button Style */}
-                            {p === 0 && (
-                                <div className="px-3 mb-4">
-                                    <div className="border border-dashed border-[#233642] p-2.5 rounded text-[11px] text-[#5b6f7c] text-center font-bold hover:border-[#3489db] hover:text-[#3489db] cursor-pointer transition-all">
-                                        Быстрое добавление
-                                    </div>
+                        <div className="flex-1 overflow-y-auto px-3 pb-8 custom-scrollbar">
+                            {col.items.map(t => <TicketCard key={t.id} ticket={t} />)}
+                            {col.items.length === 0 && (
+                                <div className="h-full flex items-center justify-center opacity-5">
+                                    <div className="w-10 h-10 border-2 border-current rounded-full" />
                                 </div>
                             )}
-
-                            {/* Cards Container */}
-                            <div className="flex-1 overflow-y-auto px-3 pb-4 custom-scrollbar">
-                                {colTickets.length === 0 && p !== 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-full opacity-10">
-                                        <div className="w-10 h-10 border border-current rounded-full mb-2" />
-                                    </div>
-                                ) : (
-                                    colTickets.map(t => <TicketCard key={t.id} ticket={t} />)
-                                )}
-                            </div>
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
         </div>
     );
