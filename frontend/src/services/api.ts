@@ -3,11 +3,6 @@ import axios from 'axios';
 // Relative path — proxied by Next.js rewrites to localhost:3001
 const api = axios.create({
     baseURL: '/api/v1',
-    headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': 'admin-1',
-        'x-user-role': 'ADMIN',
-    },
 });
 
 export const ticketService = {
