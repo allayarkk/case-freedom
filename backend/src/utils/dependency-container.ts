@@ -1,5 +1,3 @@
-import { TicketRepository } from '../repositories/ticket.repository.js';
-import { ManagerRepository } from '../repositories/manager.repository.js';
 import { TicketService } from '../services/ticket.service.js';
 import { AIService } from '../services/ai.service.js';
 import { GeoService } from '../services/geo.service.js';
@@ -18,15 +16,13 @@ export class DependencyContainer {
     public analyticsController: AnalyticsController;
 
     private constructor() {
-        const ticketRepo = new TicketRepository();
-        const managerRepo = new ManagerRepository();
         const aiService = new AIService();
         const geoService = new GeoService();
         const routingService = new RoutingService(geoService);
-        const ticketService = new TicketService(ticketRepo, managerRepo, aiService, geoService, routingService);
+        const ticketService = new TicketService(aiService, geoService, routingService);
 
         this.ticketController = new TicketController(ticketService);
-        this.managerController = new ManagerController(managerRepo);
+        this.managerController = new ManagerController();
         this.analyticsController = new AnalyticsController(new AnalyticsService());
     }
 

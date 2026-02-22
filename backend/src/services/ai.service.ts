@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { AppError } from '../utils/app-error.js';
 
 export type AIAnalysisResult = {
-    type: 'Жалоба' | 'Смена_данных' | 'Консультация' | 'Претензия' | 'Неработоспособность_приложения' | 'Мошеннические_действия' | 'Спам';
+    type: 'Жалоба' | 'Смена_данных' | 'Консультация' | 'Претензия' | 'Неработоспособность_приложения' | 'Мошеннические_действия' | 'Спам' | 'НЕ_РАЗОБРАНО';
     sentiment: 'Позитивный' | 'Нейтральный' | 'Негативный';
     priority: number;
     language: 'KZ' | 'ENG' | 'RU';
@@ -10,7 +10,7 @@ export type AIAnalysisResult = {
     normalizedLocation?: { city: string; region?: string; country: string };
 };
 
-const VALID_TYPES = ['Жалоба', 'Смена_данных', 'Консультация', 'Претензия', 'Неработоспособность_приложения', 'Мошеннические_действия', 'Спам'];
+const VALID_TYPES = ['Жалоба', 'Смена_данных', 'Консультация', 'Претензия', 'Неработоспособность_приложения', 'Мошеннические_действия', 'Спам', 'НЕ_РАЗОБРАНО'];
 const VALID_SENTIMENTS = ['Позитивный', 'Нейтральный', 'Негативный'];
 
 const SYSTEM_PROMPT = `Ты — экспертный классификатор Freedom Broker. Твоя задача — полный анализ заявки.
@@ -23,7 +23,7 @@ const SYSTEM_PROMPT = `Ты — экспертный классификатор 
    - 5-7: Смена данных, технические ошибки в приложении.
    - 1-4: Обычные консультации, благодарности, спам.
 4. ЯЗЫК: KZ, ENG, RU. По умолчанию RU.
-5. SUMMARY: Выжимка сути обращения + рекомендация для менеджера (что сделать в первую очередь). 1-2 предложения.
+5. SUMMARY: Выжимка сути обращения + рекомендация для менеджера. Пиши SUMMARY СТРОГО на языке клиента (если пишет на KZ — отвечай на KZ). 1-2 предложения.
 6. ГЕО-НОРМАЛИЗАЦИЯ: Извлеки Город, Область, Страну для маршрутизации.
 
 Отвечай ТОЛЬКО JSON:
@@ -74,11 +74,11 @@ export class AIService {
             const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
 
             return {
-                type: VALID_TYPES.includes(parsed.type) ? parsed.type : 'Консультация',
+                type: VALID_TYPES.includes(parsed.type) ? parsed.type : 'НЕ_РАЗОБРАНО',
                 sentiment: VALID_SENTIMENTS.includes(parsed.sentiment) ? parsed.sentiment : 'Нейтральный',
-                priority: Math.min(10, Math.max(1, Number(parsed.priority) || 5)),
-                language: ['KZ', 'ENG', 'RU'].includes(parsed.language) ? parsed.language : 'RU',
-                summary: parsed.summary || 'Анализ завершен',
+                priority: Number(parsed.priority) || 0,
+                language: ['KZ', 'ENG', 'RU'].includes(parsed.language) ? parsed.language : parsed.language,
+                summary: parsed.summary || 'Требуется ручной анализ',
                 normalizedLocation: parsed.normalizedLocation
             };
         } catch (error) {

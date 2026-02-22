@@ -124,8 +124,8 @@ function TicketsContent() {
                                                     </span>
                                                 </div>
                                                 <div className="flex gap-2 text-[9px] font-bold">
-                                                    <span className={`${ticket.analysis.sentiment === 'NEGATIVE' ? 'text-red-400' :
-                                                        ticket.analysis.sentiment === 'POSITIVE' ? 'text-green-400' : 'text-slate-500'
+                                                    <span className={`${(ticket.analysis.sentiment === 'Негативный' || ticket.analysis.sentiment === 'NEGATIVE') ? 'text-red-400' :
+                                                        (ticket.analysis.sentiment === 'Позитивный' || ticket.analysis.sentiment === 'POSITIVE') ? 'text-green-400' : 'text-slate-500'
                                                         }`}>
                                                         {ticket.analysis.sentiment}
                                                     </span>

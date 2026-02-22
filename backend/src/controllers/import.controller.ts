@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { OfficeRepository } from '../repositories/office.repository.js';
 import { OfficeImportService } from '../services/office-import.service.js';
 import { ManagerImportService } from '../services/manager-import.service.js';
 import { successResponse } from '../utils/api-response.js';
 import { parseCSV } from '../utils/csv-parser.js';
+import prisma from '../config/database.js';
 
 export class ImportController {
-    private officeRepo = new OfficeRepository();
     private officeImport = new OfficeImportService();
     private managerImport = new ManagerImportService();
 
@@ -27,7 +26,13 @@ export class ImportController {
     };
 
     getOffices = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
-        try { res.json(successResponse(await this.officeRepo.findAll())); }
+        try {
+            const offices = await prisma.office.findMany({
+                include: { _count: { select: { managers: true, tickets: true } } },
+                orderBy: { name: 'asc' },
+            });
+            res.json(successResponse(offices));
+        }
         catch (e) { next(e); }
     };
 }

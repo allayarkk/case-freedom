@@ -477,7 +477,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                     <div className="space-y-4">
                                                         <div className="flex justify-between items-end border-b border-[#233642] pb-3">
                                                             <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Категория</span>
-                                                            <span className="text-xs font-black text-white uppercase">{String(ticket?.analysis?.type || '—').replace(/_/g, ' ')}</span>
+                                                            <span className={`text-xs font-black px-2 py-0.5 rounded ${ticket?.analysis?.type === 'НЕ_РАЗОБРАНО' ? 'bg-[#233642] text-[#5b6f7c]' : 'text-white'}`}>
+                                                                {String(ticket?.analysis?.type || '—').replace(/_/g, ' ')}
+                                                            </span>
                                                         </div>
                                                         <div className="flex justify-between items-end border-b border-[#233642] pb-3">
                                                             <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Тональность</span>
@@ -497,15 +499,15 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                     <div className="pt-2">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Приоритет</span>
-                                                            <span className={`text-xl font-black ${(ticket?.analysis?.priority ?? 0) >= 8 ? 'text-red-500' : (ticket?.analysis?.priority ?? 0) >= 6 ? 'text-amber-500' : 'text-primary'}`}>
-                                                                P{ticket?.analysis?.priority || 1}
+                                                            <span className={`text-xl font-black ${(ticket?.analysis?.priority ?? 0) >= 8 ? 'text-red-500' : (ticket?.analysis?.priority ?? 0) >= 6 ? 'text-amber-500' : (ticket?.analysis?.priority ?? 0) === 0 ? 'text-[#5b6f7c]' : 'text-primary'}`}>
+                                                                P{ticket?.analysis?.priority ?? 0}
                                                             </span>
                                                         </div>
                                                         <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
                                                             <motion.div
                                                                 initial={{ width: 0 }}
-                                                                animate={{ width: `${(ticket?.analysis?.priority || 1) * 10}%` }}
-                                                                className={`h-full ${(ticket?.analysis?.priority ?? 0) >= 8 ? 'bg-red-500' : (ticket?.analysis?.priority ?? 0) >= 6 ? 'bg-amber-500' : 'bg-primary'}`}
+                                                                animate={{ width: `${(ticket?.analysis?.priority ?? 0) * 10}%` }}
+                                                                className={`h-full ${(ticket?.analysis?.priority ?? 0) >= 8 ? 'bg-red-500' : (ticket?.analysis?.priority ?? 0) >= 6 ? 'bg-amber-500' : (ticket?.analysis?.priority ?? 0) === 0 ? 'bg-[#233642]' : 'bg-primary'}`}
                                                             />
                                                         </div>
                                                     </div>

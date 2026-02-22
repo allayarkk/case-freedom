@@ -27,7 +27,8 @@ function getMinPositionForType(type: string): string {
     switch (type) {
         case 'Мошеннические_действия': return 'Главный_специалист';
         case 'Претензия': return 'Ведущий_специалист';
-        case 'Смена_данных': return 'Ведущий_специалист';
+        case 'Смена_данных': return 'Главный_специалист';
+        case 'НЕ_РАЗОБРАНО': return 'Специалист';
         default: return 'Специалист';
     }
 }
@@ -83,7 +84,7 @@ export class RoutingService {
 
         let targetOfficeId: string;
         const country = (ticket?.country || '').trim().toLowerCase();
-        const isKazakhstan = !country || ['казахстан', 'kazakhstan', 'kz', 'kaz'].includes(country);
+        const isKazakhstan = ['казахстан', 'kazakhstan', 'kz', 'kaz'].includes(country);
 
         if (!isKazakhstan) {
             const hqOffices = offices.filter(o => ['Астана', 'Алматы'].includes(o.name));

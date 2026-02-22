@@ -5,8 +5,6 @@ import type { AIAnalysisResult } from './ai.service.js';
 import { AIService } from './ai.service.js';
 import { GeoService } from './geo.service.js';
 import { RoutingService } from './routing.service.js';
-import { ManagerRepository } from '../repositories/manager.repository.js';
-import { TicketRepository } from '../repositories/ticket.repository.js';
 
 type Segment = 'VIP' | 'MASS' | 'PRIORITY';
 
@@ -22,18 +20,26 @@ function mapSegment(val: string): Segment {
  */
 function getDefaultAnalysis(): AIAnalysisResult {
     return {
-        type: 'Консультация',
+        type: 'НЕ_РАЗОБРАНО',
         sentiment: 'Нейтральный',
-        priority: 0, // Статус "НЕ РАЗОБРАНО" во фронтенде
+        priority: 0,
         language: 'RU',
         summary: 'Автоматический анализ невозможен: отсутствуют описание и вложения. Требуется ручной разбор (Manual Review).',
     };
 }
 
+const TICKET_FULL_INCLUDE = {
+    analysis: true,
+    manager: true,
+    office: true,
+    assignmentLogs: {
+        include: { fromManager: true, toManager: true, assignedBy: true },
+        orderBy: { createdAt: 'desc' as const },
+    },
+};
+
 export class TicketService {
     constructor(
-        private ticketRepo: TicketRepository,
-        private managerRepo: ManagerRepository,
         private ai: AIService,
         private geo: GeoService,
         private routing: RoutingService
@@ -58,8 +64,8 @@ export class TicketService {
     }) {
         const totalStart = performance.now();
         const segment = mapSegment(data.segment);
-        const description = data.description || '';
-        let attachments = data.attachments || null;
+        const description = data.description;
+        let attachments = data.attachments;
 
         // --- NEW: Local Attachment Resolution ---
         let aiAttachment = attachments;
@@ -90,7 +96,7 @@ export class TicketService {
                 city: data.city,
                 street: data.street,
                 houseNumber: data.houseNumber,
-                importSessionId: data.importSessionId || null,
+                importSessionId: data.importSessionId,
             },
         });
 
@@ -110,12 +116,12 @@ export class TicketService {
         const locationSource = aiResult.normalizedLocation || {
             city: data.city,
             region: data.oblast,
-            country: data.country || 'Казахстан'
+            country: data.country
         };
 
         const geoStart = performance.now();
         const { coords, trace: geoTrace } = await this.geo.getCoordinatesWithTrace({
-            country: locationSource.country || 'Казахстан',
+            country: locationSource.country,
             oblast: locationSource.region || data.oblast,
             city: locationSource.city || data.city,
             street: data.street,
@@ -204,9 +210,15 @@ export class TicketService {
         });
 
         // 8. Увеличиваем счётчик
-        await this.managerRepo.updateActiveCount(routing.managerId, 1);
+        await prisma.manager.update({
+            where: { id: routing.managerId },
+            data: { activeTicketCount: { increment: 1 } },
+        });
 
-        const fullTicket = await this.ticketRepo.findById(ticket.id);
+        const fullTicket = await prisma.ticket.findUnique({
+            where: { id: ticket.id },
+            include: TICKET_FULL_INCLUDE,
+        });
 
         return {
             ticket: fullTicket,
@@ -233,17 +245,17 @@ export class TicketService {
             const idx = processed + failed + 1;
             try {
                 const result = await this.processSingleTicket({
-                    clientGuid: row['GUID клиента'] || '',
-                    gender: row['Пол клиента'] || '',
-                    dateOfBirth: row['Дата рождения'] || '',
-                    description: row['Описание'] || '',
-                    attachments: row['Вложения'] || '',
-                    segment: row['Сегмент клиента'] || '',
-                    country: row['Страна'] || '',
-                    oblast: row['Область'] || '',
-                    city: row['Населённый пункт'] || '',
-                    street: row['Улица'] || '',
-                    houseNumber: row['Дом'] || '',
+                    clientGuid: row['GUID клиента'],
+                    gender: row['Пол клиента'],
+                    dateOfBirth: row['Дата рождения'],
+                    description: row['Описание'],
+                    attachments: row['Вложения'],
+                    segment: row['Сегмент клиента'],
+                    country: row['Страна'],
+                    oblast: row['Область'],
+                    city: row['Населённый пункт'],
+                    street: row['Улица'],
+                    houseNumber: row['Дом'],
                 });
                 results.push({ index: idx, status: 'ok', ticketId: result.ticket?.id });
                 processed++;
@@ -255,17 +267,45 @@ export class TicketService {
         return { processed, failed, total: csvData.length, results };
     }
 
-    async getTickets(f: any, p: any) { return this.ticketRepo.findMany(f, p); }
-    async getTicketById(id: string) { return this.ticketRepo.findById(id); }
+    async getTickets(f: any, p: any) {
+        const where: any = {};
+        if (f.managerId) where.managerId = f.managerId;
+        if (f.officeId) where.officeId = f.officeId;
+        if (f.segment) where.segment = f.segment;
+
+        const [tickets, total] = await Promise.all([
+            prisma.ticket.findMany({
+                where, ...p,
+                include: { analysis: true, manager: true, office: true },
+                orderBy: { createdAt: 'desc' },
+            }),
+            prisma.ticket.count({ where }),
+        ]);
+        return { tickets, total };
+    }
+
+    async getTicketById(id: string) {
+        return prisma.ticket.findUnique({
+            where: { id },
+            include: TICKET_FULL_INCLUDE,
+        });
+    }
 
     async closeTicket(id: string) {
         const ticket = await prisma.ticket.findUnique({ where: { id }, select: { managerId: true } });
         if (!ticket) throw new Error('Ticket not found');
-        if (ticket.managerId) await this.managerRepo.updateActiveCount(ticket.managerId, -1);
+
+        if (ticket.managerId) {
+            await prisma.manager.update({
+                where: { id: ticket.managerId },
+                data: { activeTicketCount: { increment: -1 } },
+            });
+        }
+
         return prisma.ticket.update({
             where: { id },
             data: { updatedAt: new Date() },
-            include: { analysis: true, manager: true, office: true },
+            include: TICKET_FULL_INCLUDE,
         });
     }
 }

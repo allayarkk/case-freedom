@@ -35,16 +35,16 @@ export class TicketController {
 
             const result = await this.ticketService.processSingleTicket({
                 clientGuid,
-                gender: gender || '',
-                dateOfBirth: dateOfBirth || '',
-                description: description || '',
-                attachments: attachments || null,
-                segment: segment || 'MASS',
-                country: country || 'Казахстан',
-                oblast: oblast || '',
-                city: city || '',
-                street: street || '',
-                houseNumber: houseNumber || '',
+                gender,
+                dateOfBirth,
+                description,
+                attachments,
+                segment,
+                country,
+                oblast,
+                city,
+                street,
+                houseNumber,
                 importSessionId
             });
 
