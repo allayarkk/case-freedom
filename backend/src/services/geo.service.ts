@@ -3,9 +3,6 @@ import axios from 'axios';
 interface Coords { lat: number; lng: number; }
 
 export class GeoService {
-    /** 
-     * Nominatim geocoding — каскадные попытки с подробным логом.
-     */
     async getCoordinatesWithTrace(addressObj: { country: string; oblast?: string; city: string; street?: string; houseNumber?: string }) {
         const trace: any[] = [];
 

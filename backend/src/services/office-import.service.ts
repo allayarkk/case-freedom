@@ -7,26 +7,23 @@ export class OfficeImportService {
 
         for (const row of rows) {
             try {
-                const name = row['Название'] ?? row['Name'] ?? row['Офис'] ?? '';
-                const address = row['Адрес'] ?? row['Address'] ?? '';
-                const lat = row['Широта'] ?? row['Latitude'] ?? '';
-                const lng = row['Долгота'] ?? row['Longitude'] ?? row['lon'] ?? '';
+                const name = row['Офис'] || '';
+                const address = row['Адрес'] || '';
 
-                if (!name) { errors.push('Нет названия'); skipped++; continue; }
+                if (!name) { errors.push('Пропущено название офиса'); skipped++; continue; }
 
                 const exists = await prisma.office.findFirst({ where: { name } });
                 if (exists) { skipped++; continue; }
 
                 await prisma.office.create({
                     data: {
-                        name, address,
-                        latitude: lat ? parseFloat(lat) : null,
-                        longitude: lng ? parseFloat(lng) : null,
+                        name,
+                        address,
                     },
                 });
                 created++;
-            } catch (err: unknown) {
-                errors.push(err instanceof Error ? err.message : 'Unknown error');
+            } catch (err: any) {
+                errors.push(err.message || 'Ошибка импорта');
                 skipped++;
             }
         }

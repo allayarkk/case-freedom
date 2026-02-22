@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import prisma from '../config/database.js';
 import type { AIAnalysisResult } from './ai.service.js';
 import { AIService } from './ai.service.js';
@@ -8,34 +10,23 @@ import { TicketRepository } from '../repositories/ticket.repository.js';
 
 type Segment = 'VIP' | 'MASS' | 'PRIORITY';
 
-function mapSegment(val?: string): Segment {
-    const s = (val || '').toUpperCase().trim();
-    if (s === 'VIP') return 'VIP';
-    if (s === 'PRIORITY') return 'PRIORITY';
+function mapSegment(val: string): Segment {
+    const s = val.toLowerCase();
+    if (s.includes('vip')) return 'VIP';
+    if (s.includes('приор')) return 'PRIORITY';
     return 'MASS';
 }
 
-/** Ищет значение в строке CSV, игнорируя регистр и пробелы в именах колонок */
-function getVal(row: Record<string, string>, keys: string[]): string {
-    for (const pk of keys) {
-        const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === pk.toLowerCase());
-        if (found) return row[found];
-    }
-    return '';
-}
-
 /**
- * Генерирует default AI result для случаев без текста.
+ * Сценарий, когда AI не может провести анализ (нет данных).
  */
-function getDefaultAnalysis(segment: string, hasAttachment: boolean): AIAnalysisResult {
+function getDefaultAnalysis(): AIAnalysisResult {
     return {
         type: 'Консультация',
-        sentiment: 'NEUTRAL',
-        priority: segment === 'VIP' ? 6 : 5,
+        sentiment: 'Нейтральный',
+        priority: 0, // Статус "НЕ РАЗОБРАНО" во фронтенде
         language: 'RU',
-        summary: hasAttachment
-            ? 'Обращение без текста. Содержит вложение — требуется ручной анализ вложения менеджером.'
-            : 'Обращение без текстового описания. Требуется ручной анализ менеджером.',
+        summary: 'Автоматический анализ невозможен: отсутствуют описание и вложения. Требуется ручной разбор (Manual Review).',
     };
 }
 
@@ -68,32 +59,47 @@ export class TicketService {
         const totalStart = performance.now();
         const segment = mapSegment(data.segment);
         const description = data.description || '';
-        const attachments = data.attachments || null;
+        let attachments = data.attachments || null;
+
+        // --- NEW: Local Attachment Resolution ---
+        let aiAttachment = attachments;
+        if (attachments && !attachments.startsWith('http') && !attachments.startsWith('data:')) {
+            try {
+                const filePath = path.join(process.cwd(), 'attachments', attachments);
+                if (fs.existsSync(filePath)) {
+                    const buffer = fs.readFileSync(filePath);
+                    aiAttachment = buffer.toString('base64');
+                    console.log(`[Ticket] Resolved local attachment: ${attachments} (${Math.round(buffer.length / 1024)} KB)`);
+                }
+            } catch (err) {
+                console.warn(`[Ticket] Failed to read local attachment ${attachments}:`, err);
+            }
+        }
 
         // 1. Создаем тикет
         const ticket = await prisma.ticket.create({
             data: {
                 clientGuid: data.clientGuid,
                 gender: data.gender,
-                dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : new Date(),
+                dateOfBirth: new Date(data.dateOfBirth),
                 description,
                 segment,
                 attachments,
-                country: data.country || 'Казахстан',
-                oblast: data.oblast || '',
+                country: data.country,
+                oblast: data.oblast,
                 city: data.city,
-                street: data.street || '',
-                houseNumber: data.houseNumber || '',
+                street: data.street,
+                houseNumber: data.houseNumber,
                 importSessionId: data.importSessionId || null,
             },
         });
 
-        // 2. AI анализ (теперь первый, чтобы получить нормализованный адрес)
+        // 2. AI анализ
         const measureAI = async (): Promise<AIAnalysisResult> => {
-            if (!description.trim()) {
-                return getDefaultAnalysis(segment, !!attachments);
+            if (!description.trim() && !aiAttachment) {
+                return getDefaultAnalysis();
             }
-            return await this.ai.analyzeTicket(description, segment, attachments);
+            return await this.ai.analyzeTicket(description, segment, aiAttachment);
         };
 
         const aiStart = performance.now();
@@ -125,39 +131,36 @@ export class TicketService {
         // 5. Сборка общего диагностического лога
         const totalDuration = Math.round(performance.now() - totalStart);
         const diagnosticTrace = {
-            version: "3.0-ULTRA-DIAGNOSTIC",
             steps: [
                 {
-                    name: "AI_АНАЛИЗ_КОНТЕНТА",
-                    description: "Инференс языковой модели для классификации и извлечения атрибутов",
+                    name: "Анализ текста",
+                    description: "Классификация обращения и извлечение данных через AI",
                     payload: {
-                        system_instructions: "FRAUD_DETECTION, LOCATION_NORMALIZATION, CATEGORIZATION",
-                        input_text: description,
-                        client_segment: segment,
+                        instructions: "CATEGORIZATION, FRAUD_DETECTION",
+                        input: description,
+                        segment,
                         has_attachments: !!attachments
                     },
                     response: aiResult,
                     logic: {
-                        priority_derivation: aiResult.priority >= 10 ? "Критический уровень (определено ИИ как Мошеннические_действия или риск потери клиента)" :
-                            aiResult.priority >= 8 ? "Высокий приоритет (негативный тон и VIP сегмент)" : "Стандартный приоритет",
-                        fraud_check: description.toLowerCase().match(/fraud|scam|stolen|unauthorized|suspicious|legal|legalit|victim|мошен|краж|списан|незакон/) ? "ПОЛОЖИТЕЛЬНО (Обнаружены ключевые слова)" : "ОТРИЦАТЕЛЬНО",
+                        fraud_check: description.toLowerCase().match(/fraud|scam|stolen|мошен|краж|списан/) ? "Найдено" : "Нет",
                     },
                     duration: aiDuration
                 },
                 {
-                    name: "ГЕО_СИНТЕЗ_И_ПОИСК",
-                    description: "Многоуровневый поиск географических координат",
+                    name: "Геолокация",
+                    description: "Поиск координат по адресу клиента",
                     payload: {
-                        raw_input: { city: data.city, oblast: data.oblast, country: data.country },
-                        ai_normalized: aiResult.normalizedLocation
+                        input: { city: data.city, oblast: data.oblast, country: data.country },
+                        normalized: aiResult.normalizedLocation
                     },
                     attempts: geoTrace,
                     result: coords,
                     duration: geoDuration
                 },
                 {
-                    name: "ДВИЖОК_МАРШРУТИЗАЦИИ",
-                    description: "Алгоритмический подбор оптимального исполнителя",
+                    name: "Маршрутизация",
+                    description: "Выбор подходящего менеджера и офиса",
                     payload: routing,
                     duration: routingDuration
                 }
@@ -230,17 +233,17 @@ export class TicketService {
             const idx = processed + failed + 1;
             try {
                 const result = await this.processSingleTicket({
-                    clientGuid: getVal(row, ['GUID клиента', 'GUID', 'clientGuid']),
-                    gender: getVal(row, ['Пол клиента', 'Пол']),
-                    dateOfBirth: getVal(row, ['Дата рождения']),
-                    description: getVal(row, ['Описание', 'Description']),
-                    attachments: getVal(row, ['Вложения', 'Attachments']),
-                    segment: getVal(row, ['Сегмент клиента', 'Сегмент']),
-                    country: getVal(row, ['Страна']),
-                    oblast: getVal(row, ['Область']),
-                    city: getVal(row, ['Населённый пункт', 'Город']),
-                    street: getVal(row, ['Улица']),
-                    houseNumber: getVal(row, ['Дом']),
+                    clientGuid: row['GUID клиента'] || '',
+                    gender: row['Пол клиента'] || '',
+                    dateOfBirth: row['Дата рождения'] || '',
+                    description: row['Описание'] || '',
+                    attachments: row['Вложения'] || '',
+                    segment: row['Сегмент клиента'] || '',
+                    country: row['Страна'] || '',
+                    oblast: row['Область'] || '',
+                    city: row['Населённый пункт'] || '',
+                    street: row['Улица'] || '',
+                    houseNumber: row['Дом'] || '',
                 });
                 results.push({ index: idx, status: 'ok', ticketId: result.ticket?.id });
                 processed++;

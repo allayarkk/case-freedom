@@ -481,11 +481,12 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                         </div>
                                                         <div className="flex justify-between items-end border-b border-[#233642] pb-3">
                                                             <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Тональность</span>
-                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded ${ticket?.analysis?.sentiment === 'NEGATIVE' ? 'bg-red-500/10 text-red-500' :
-                                                                ticket?.analysis?.sentiment === 'POSITIVE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'
+                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded ${(ticket?.analysis?.sentiment === 'Негативный' || ticket?.analysis?.sentiment === 'NEGATIVE') ? 'bg-red-500/10 text-red-500' :
+                                                                (ticket?.analysis?.sentiment === 'Позитивный' || ticket?.analysis?.sentiment === 'POSITIVE') ? 'bg-emerald-500/10 text-emerald-500' :
+                                                                    'bg-blue-500/10 text-blue-500'
                                                                 }`}>
-                                                                {ticket?.analysis?.sentiment === 'NEGATIVE' ? 'НЕГАТИВ' :
-                                                                    ticket?.analysis?.sentiment === 'POSITIVE' ? 'ПОЗИТИВ' : 'НЕЙТРАЛЬНО'}
+                                                                {(ticket?.analysis?.sentiment === 'Негативный' || ticket?.analysis?.sentiment === 'NEGATIVE') ? 'НЕГАТИВНЫЙ' :
+                                                                    (ticket?.analysis?.sentiment === 'Позитивный' || ticket?.analysis?.sentiment === 'POSITIVE') ? 'ПОЗИТИВНЫЙ' : 'НЕЙТРАЛЬНЫЙ'}
                                                             </span>
                                                         </div>
                                                         <div className="flex justify-between items-end border-b border-[#233642] pb-3">
@@ -570,7 +571,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                             <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">Режим аудитора</h3>
                                         </div>
                                         <span className="text-[9px] font-mono text-amber-500/50 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 uppercase">
-                                            Версия лога 3.0-ULTRA
+                                            TRACING ACTIVE
                                         </span>
                                     </div>
 
@@ -606,7 +607,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                     </div>
                                     <div className="flex items-center gap-2 text-[#5b6f7c]">
                                         <Layers size={14} />
-                                        <span className="text-[9px] font-bold uppercase tracking-wider italic">FIRE Trace v3.0</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider italic">FIRE Trace</span>
                                     </div>
                                 </div>
                             </div>

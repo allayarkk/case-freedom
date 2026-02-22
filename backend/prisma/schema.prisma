@@ -18,9 +18,9 @@ enum TicketType {
 }
 
 enum Sentiment {
-  POSITIVE
-  NEUTRAL
-  NEGATIVE
+  Позитивный
+  Нейтральный
+  Негативный
 }
 
 enum Segment {

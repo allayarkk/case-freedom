@@ -39,8 +39,8 @@ function escalateByContext(
     segment: string
 ): string {
     let minRank = positionRank(basePosition);
-    if (sentiment === 'NEGATIVE' && priority >= 8) minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
-    if (segment === 'VIP' && sentiment === 'NEGATIVE') minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
+    if (sentiment === 'Негативный' && priority >= 8) minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
+    if (segment === 'VIP' && sentiment === 'Негативный') minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
     if (priority >= 10) minRank = Math.max(minRank, positionRank('Главный_специалист'));
 
     const entries = Object.entries(POSITION_HIERARCHY);
