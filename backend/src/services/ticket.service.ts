@@ -88,40 +88,83 @@ export class TicketService {
             },
         });
 
-        // 2. AI анализ + Геокодинг параллельно
-        const address = `${data.country || 'Казахстан'}, ${data.city}, ${data.street} ${data.houseNumber}`.trim();
-
-        let aiDuration = 0;
-        let geoDuration = 0;
-
+        // 2. AI анализ (теперь первый, чтобы получить нормализованный адрес)
         const measureAI = async (): Promise<AIAnalysisResult> => {
             if (!description.trim()) {
                 return getDefaultAnalysis(segment, !!attachments);
             }
-            const s = performance.now();
-            const res = await this.ai.analyzeTicket(description, segment, attachments);
-            aiDuration = Math.round(performance.now() - s);
-            return res;
+            return await this.ai.analyzeTicket(description, segment, attachments);
         };
 
-        const measureGeo = async () => {
-            const s = performance.now();
-            const res = await this.geo.getCoordinates(address);
-            geoDuration = Math.round(performance.now() - s);
-            return res;
+        const aiStart = performance.now();
+        const aiResult = await measureAI();
+        const aiDuration = Math.round(performance.now() - aiStart);
+
+        // 3. Геокодинг с использованием нормализованных данных от ИИ
+        const locationSource = aiResult.normalizedLocation || {
+            city: data.city,
+            region: data.oblast,
+            country: data.country || 'Казахстан'
         };
 
-        const [aiResult, geoResult] = await Promise.all([measureAI(), measureGeo()]);
+        const geoStart = performance.now();
+        const { coords, trace: geoTrace } = await this.geo.getCoordinatesWithTrace({
+            country: locationSource.country || 'Казахстан',
+            oblast: locationSource.region || data.oblast,
+            city: locationSource.city || data.city,
+            street: data.street,
+            houseNumber: data.houseNumber
+        });
+        const geoDuration = Math.round(performance.now() - geoStart);
 
-        // 3. Маршрутизация
+        // 4. Маршрутизация
         const routingStart = performance.now();
         const routing = await this.routing.findBestManager(ticket.id, segment, aiResult);
         const routingDuration = Math.round(performance.now() - routingStart);
 
-        // 4. Считаем Total (без учета записи в БД в конце, или с ней? Лучше до момента когда всё готово)
+        // 5. Сборка общего диагностического лога
         const totalDuration = Math.round(performance.now() - totalStart);
+        const diagnosticTrace = {
+            version: "3.0-ULTRA-DIAGNOSTIC",
+            steps: [
+                {
+                    name: "AI_INFERENCE_CORE",
+                    description: "Инференс языковой модели для классификации и извлечения атрибутов",
+                    payload: {
+                        system_instructions: "FRAUD_DETECTION, LOCATION_NORMALIZATION, CATEGORIZATION",
+                        input_text: description,
+                        client_segment: segment,
+                        has_attachments: !!attachments
+                    },
+                    response: aiResult,
+                    logic: {
+                        priority_derivation: aiResult.priority >= 10 ? "Критический уровень (определено ИИ как FRAUD или риск потери клиента)" :
+                            aiResult.priority >= 8 ? "Высокий приоритет (негативный sentiment и VIP сегмент)" : "Стандартный приоритет",
+                        fraud_check: description.toLowerCase().match(/fraud|scam|stolen|unauthorized|suspicious|legal|legalit|victim/) ? "POSITIVE (Triggered keywords)" : "NEGATIVE",
+                    },
+                    duration: aiDuration
+                },
+                {
+                    name: "GEO_SYNTHESIS_CASCADE",
+                    description: "Многоуровневый поиск географических координат",
+                    payload: {
+                        raw_input: { city: data.city, oblast: data.oblast, country: data.country },
+                        ai_normalized: aiResult.normalizedLocation
+                    },
+                    attempts: geoTrace,
+                    result: coords,
+                    duration: geoDuration
+                },
+                {
+                    name: "ROUTING_ENGINE_DECISIONS",
+                    description: "Алгоритмический подбор оптимального исполнителя",
+                    trace: routing.trace,
+                    duration: routingDuration
+                }
+            ]
+        };
 
-        // 5. Сохраняем анализ и тайминги
+        // 6. Сохраняем анализ и тайминги
         await prisma.ticketAnalysis.create({
             data: {
                 ticketId: ticket.id,
@@ -130,12 +173,13 @@ export class TicketService {
                 priority: aiResult.priority,
                 language: aiResult.language,
                 summary: aiResult.summary,
-                latitude: geoResult?.lat ?? null,
-                longitude: geoResult?.lng ?? null,
+                latitude: coords?.lat ?? null,
+                longitude: coords?.lng ?? null,
                 aiDuration,
                 geoDuration,
                 routingDuration,
                 totalDuration,
+                trace: diagnosticTrace as any
             },
         });
 

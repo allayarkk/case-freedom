@@ -129,6 +129,7 @@ model TicketAnalysis {
   geoDuration     Int?       @default(0)
   routingDuration Int?       @default(0)
   totalDuration   Int?       @default(0)
+  trace           Json?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }

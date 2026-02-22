@@ -7,6 +7,7 @@ export type AIAnalysisResult = {
     priority: number;
     language: 'KZ' | 'ENG' | 'RU';
     summary: string;
+    normalizedLocation?: { city: string; region?: string; country: string };
 };
 
 const VALID_TYPES = ['COMPLAINT', 'DATA_CHANGE', 'CONSULTATION', 'CLAIM', 'APP_MALFUNCTION', 'FRAUD', 'SPAM'];
@@ -16,28 +17,38 @@ const VALID_LANGUAGES = ['KZ', 'ENG', 'RU'];
 const SYSTEM_PROMPT = `You are a support ticket classifier for Freedom Broker (financial company).
 Analyze the customer's message and classify it.
 
-Classification rules:
-- Types: COMPLAINT (негатив без конкретных требований), DATA_CHANGE (смена данных, паспорт, ФИО), CONSULTATION (вопрос, запрос информации), CLAIM (претензия с требованием возмещения/компенсации), APP_MALFUNCTION (ошибка, сбой, не работает приложение, не приходит SMS), FRAUD (мошенничество, несанкционированный доступ, подозрительные операции), SPAM (нерелевантное).
-- Sentiments: POSITIVE (благодарность, спасибо, доволен), NEUTRAL (нейтральный, информативный тон), NEGATIVE (недоволен, злится, жалуется).
-- CRITICAL: Type and sentiment are INDEPENDENT. A message like "SMS не приходит" is APP_MALFUNCTION even if tone is neutral. Determine type by WHAT happened, sentiment by HOW the client feels.
-- Priority 1-10: Consider type severity (FRAUD=10, CLAIM≥7, APP_MALFUNCTION≥6), sentiment (NEGATIVE raises priority), and urgency.
-- Language: detect if text is in Kazakh (KZ), English (ENG), or Russian (RU).
+CRITICAL FRAUD DETECTION RULES:
+- If the customer mentions "fraud", "scam", "stolen money", "unauthorized transaction", "suspicious broker", or doubts the legality of operations (e.g. "is this legal?", "victim of scammers?") -> ALWAYS type = FRAUD and priority 10.
+- Even if it's just a question about being a victim, classify as FRAUD to ensure Lead Specialist review.
 
-Respond ONLY with valid JSON: { "type": "TYPE", "sentiment": "SENTIMENT", "priority": 1-10, "language": "KZ|ENG|RU", "summary": "1-2 sentences in Russian" }`;
-
-const VISION_SYSTEM_PROMPT = `You are a support ticket classifier for Freedom Broker (financial company).
-The customer has sent an attachment (image). Analyze the image content along with any text description.
+LOCATION NORMALIZATION:
+- Extract the city and region from the message manually if possible, or use provided context to normalize it.
+- Example: "Pavlodar in North Kazakhstan region" should be normalized to City: Pavlodar, Region: Pavlodar region (because Pavlodar is not in North Kazakhstan).
 
 Classification rules:
-- If the image shows an error (error, data error, order error, отказ) → type = APP_MALFUNCTION
-- If the image shows suspicious transactions → type = FRAUD
-- If the image shows personal documents (passport, ID) → type = DATA_CHANGE
-- Types: COMPLAINT, DATA_CHANGE, CONSULTATION, CLAIM, APP_MALFUNCTION, FRAUD, SPAM
-- Sentiments: POSITIVE, NEUTRAL, NEGATIVE
-- Priority 1-10: Consider type severity (FRAUD=10, CLAIM≥7, APP_MALFUNCTION≥6).
-- Language: detect from text (KZ, ENG, RU).
+- Types: COMPLAINT (general negative), DATA_CHANGE (passport, name), CONSULTATION (informational), CLAIM (demanding refund/compensation), APP_MALFUNCTION (bugs, SMS, app errors), FRAUD (suspicious activities), SPAM.
+- Sentiments: POSITIVE, NEUTRAL, NEGATIVE.
+- Priority: 1-10.
 
-Respond ONLY with valid JSON: { "type": "TYPE", "sentiment": "SENTIMENT", "priority": 1-10, "language": "KZ|ENG|RU", "summary": "1-2 sentences in Russian describing what you see" }`;
+Respond ONLY with valid JSON: 
+{ 
+  "type": "TYPE", 
+  "sentiment": "SENTIMENT", 
+  "priority": 1-10, 
+  "language": "KZ|ENG|RU", 
+  "summary": "1-2 sentences in RU",
+  "normalizedLocation": { "city": "Name", "region": "Name region", "country": "Kazakhstan" }
+}`;
+
+const VISION_SYSTEM_PROMPT = `You are a support ticket classifier for Freedom Broker.
+Analyze image + text.
+
+RULES:
+- Suspicious transactions/scams -> FRAUD.
+- App errors -> APP_MALFUNCTION.
+- Documents -> DATA_CHANGE.
+
+Respond ONLY with JSON: { "type": "TYPE", "sentiment": "SENTIMENT", "priority": 1-10, "language": "KZ|ENG|RU", "summary": "RU text", "normalizedLocation": { "city": "Name", "region": "Name region", "country": "Kazakhstan" } }`;
 
 export class AIService {
     private openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -126,8 +137,13 @@ Priority Rules:
         const language = VALID_LANGUAGES.includes(raw.language) ? raw.language : 'RU';
         const priority = Math.min(10, Math.max(1, Number(raw.priority) || 5));
         const summary = typeof raw.summary === 'string' ? raw.summary : 'Результат анализа.';
+        const normalizedLocation = raw.normalizedLocation && typeof raw.normalizedLocation === 'object' ? {
+            city: String(raw.normalizedLocation.city || ''),
+            region: String(raw.normalizedLocation.region || ''),
+            country: String(raw.normalizedLocation.country || 'Казахстан')
+        } : undefined;
 
-        return { type, sentiment, priority, language, summary };
+        return { type, sentiment, priority, language, summary, normalizedLocation };
     }
 
     /**
