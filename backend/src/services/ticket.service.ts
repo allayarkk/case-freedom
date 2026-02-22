@@ -112,7 +112,26 @@ export class TicketService {
         const aiResult = await measureAI();
         const aiDuration = Math.round(performance.now() - aiStart);
 
-        // 3. Геокодинг с использованием нормализованных данных от ИИ
+        // --- NEW: SPAM HANDLING ---
+        if (aiResult.type === 'Спам') {
+            await prisma.ticketAnalysis.create({
+                data: {
+                    ticketId: ticket.id,
+                    type: 'Спам' as any,
+                    sentiment: aiResult.sentiment as any,
+                    priority: aiResult.priority,
+                    language: aiResult.language,
+                    summary: aiResult.summary,
+                    aiDuration,
+                    totalDuration: Math.round(performance.now() - totalStart),
+                    trace: { note: "Тикет классифицирован как спам. Роутинг пропущен." } as any
+                }
+            });
+            console.log(`[Ticket] ID ${ticket.id} marked as SPAM. Skipping routing.`);
+            return { ticket: await prisma.ticket.findUnique({ where: { id: ticket.id }, include: TICKET_FULL_INCLUDE }), isSpam: true };
+        }
+
+        // 3. Геокодинг
         const locationSource = aiResult.normalizedLocation || {
             city: data.city,
             region: data.oblast,
@@ -129,52 +148,7 @@ export class TicketService {
         });
         const geoDuration = Math.round(performance.now() - geoStart);
 
-        // 4. Маршрутизация
-        const routingStart = performance.now();
-        const routing = await this.routing.findBestManager(ticket.id, segment, aiResult);
-        const routingDuration = Math.round(performance.now() - routingStart);
-
-        // 5. Сборка общего диагностического лога
-        const totalDuration = Math.round(performance.now() - totalStart);
-        const diagnosticTrace = {
-            steps: [
-                {
-                    name: "Анализ текста",
-                    description: "Классификация обращения и извлечение данных через AI",
-                    payload: {
-                        instructions: "CATEGORIZATION, FRAUD_DETECTION",
-                        input: description,
-                        segment,
-                        has_attachments: !!attachments
-                    },
-                    response: aiResult,
-                    logic: {
-                        fraud_check: description.toLowerCase().match(/fraud|scam|stolen|мошен|краж|списан/) ? "Найдено" : "Нет",
-                    },
-                    duration: aiDuration
-                },
-                {
-                    name: "Геолокация",
-                    description: "Поиск координат по адресу клиента",
-                    payload: {
-                        input: { city: data.city, oblast: data.oblast, country: data.country },
-                        normalized: aiResult.normalizedLocation
-                    },
-                    attempts: geoTrace,
-                    result: coords,
-                    duration: geoDuration
-                },
-                {
-                    name: "Маршрутизация",
-                    description: "Выбор подходящего менеджера и офиса",
-                    payload: routing,
-                    duration: routingDuration
-                }
-            ],
-            totalDuration
-        };
-
-        // 6. Сохраняем анализ и тайминги
+        // --- NEW: Save preliminary analysis with coords for routing to use ---
         await prisma.ticketAnalysis.create({
             data: {
                 ticketId: ticket.id,
@@ -187,53 +161,69 @@ export class TicketService {
                 longitude: coords?.lng ?? null,
                 aiDuration,
                 geoDuration,
-                routingDuration,
-                totalDuration,
-                trace: diagnosticTrace as any
-            },
+            }
         });
 
-        // 6. Обновляем тикет
-        await prisma.ticket.update({
-            where: { id: ticket.id },
-            data: { managerId: routing.managerId, officeId: routing.officeId },
-        });
+        // 4. Маршрутизация
+        const routingStart = performance.now();
+        const routing = await this.routing.findBestManager(ticket.id, segment, aiResult);
+        const routingDuration = Math.round(performance.now() - routingStart);
 
-        // 7. Лог назначения
-        await prisma.assignmentLog.create({
-            data: {
-                ticketId: ticket.id,
-                toManagerId: routing.managerId,
-                assignedById: routing.managerId,
-                reason: routing.reason,
-            },
-        });
+        // 5. Atomic Update via Transaction
+        const totalDuration = Math.round(performance.now() - totalStart);
+        const diagnosticTrace = {
+            steps: [
+                { name: "Анализ текста", response: aiResult, duration: aiDuration },
+                { name: "Геолокация", result: coords, duration: geoDuration },
+                { name: "Маршрутизация", payload: routing, duration: routingDuration }
+            ],
+            totalDuration
+        };
 
-        // 8. Увеличиваем счётчик
-        await prisma.manager.update({
-            where: { id: routing.managerId },
-            data: { activeTicketCount: { increment: 1 } },
-        });
+        const finalTicket = await prisma.$transaction(async (tx) => {
+            // Update ticket
+            await tx.ticket.update({
+                where: { id: ticket.id },
+                data: { managerId: routing.managerId, officeId: routing.officeId },
+            });
 
-        const fullTicket = await prisma.ticket.findUnique({
-            where: { id: ticket.id },
-            include: TICKET_FULL_INCLUDE,
+            // Update manager count
+            await tx.manager.update({
+                where: { id: routing.managerId },
+                data: { activeTicketCount: { increment: 1 } },
+            });
+
+            // Create assignment log
+            await tx.assignmentLog.create({
+                data: {
+                    ticketId: ticket.id,
+                    toManagerId: routing.managerId,
+                    assignedById: routing.managerId,
+                    reason: routing.reason,
+                },
+            });
+
+            // Update analysis with trace and final metrics
+            await tx.ticketAnalysis.update({
+                where: { ticketId: ticket.id },
+                data: {
+                    routingDuration,
+                    totalDuration,
+                    trace: diagnosticTrace as any
+                }
+            });
+
+            return tx.ticket.findUnique({
+                where: { id: ticket.id },
+                include: TICKET_FULL_INCLUDE,
+            });
         });
 
         return {
-            ticket: fullTicket,
+            ticket: finalTicket,
             analysis: aiResult,
-            performance: {
-                ai: aiDuration,
-                geo: geoDuration,
-                routing: routingDuration,
-                total: totalDuration,
-            },
-            routing: {
-                managerId: routing.managerId,
-                officeId: routing.officeId,
-                reason: routing.reason,
-            },
+            performance: { ai: aiDuration, geo: geoDuration, routing: routingDuration, total: totalDuration },
+            routing: { managerId: routing.managerId, officeId: routing.officeId, reason: routing.reason },
         };
     }
 

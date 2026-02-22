@@ -11,7 +11,6 @@ interface RoutingResult {
 
 /**
  * Escalation Matrix — определяет минимальную должность менеджера
- * на основе типа обращения и тональности.
  */
 const POSITION_HIERARCHY: Record<string, number> = {
     Специалист: 1,
@@ -23,29 +22,10 @@ function positionRank(pos: string): number {
     return POSITION_HIERARCHY[pos] ?? 1;
 }
 
-function getMinPositionForType(type: string): string {
-    switch (type) {
-        case 'Мошеннические_действия': return 'Главный_специалист';
-        case 'Претензия': return 'Ведущий_специалист';
-        case 'Смена_данных': return 'Главный_специалист';
-        case 'НЕ_РАЗОБРАНО': return 'Специалист';
-        default: return 'Специалист';
-    }
-}
-
-function escalateByContext(
-    basePosition: string,
-    sentiment: string,
-    priority: number,
-    segment: string
-): string {
-    let minRank = positionRank(basePosition);
-    if (sentiment === 'Негативный' && priority >= 8) minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
-    if (segment === 'VIP' && sentiment === 'Негативный') minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
-    if (priority >= 10) minRank = Math.max(minRank, positionRank('Главный_специалист'));
-
-    const entries = Object.entries(POSITION_HIERARCHY);
-    return entries.find(([, rank]) => rank === minRank)?.[0] ?? 'Специалист';
+function getMinPositionForType(type: string, priority: number): string {
+    if (type === 'Смена_данных' || priority >= 9) return 'Главный_специалист';
+    if (type === 'Претензия' || priority >= 7) return 'Ведущий_специалист';
+    return 'Специалист';
 }
 
 export class RoutingService {
@@ -58,186 +38,125 @@ export class RoutingService {
     ): Promise<RoutingResult> {
         const trace: any[] = [];
         const offices = await prisma.office.findMany();
-        if (!offices.length) throw new Error('No offices found. Import offices first.');
+        if (!offices.length) throw new Error('No offices found.');
 
-        const reasons: string[] = [];
+        const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+        if (!ticket) throw new Error('Ticket not found');
 
-        // 0. ESCALATION
-        const basePosition = getMinPositionForType(analysis.type);
-        const requiredPosition = escalateByContext(
-            basePosition,
-            analysis.sentiment,
-            analysis.priority,
-            segment
-        );
-        trace.push({
-            stage: 'ESCALATION',
-            input: { type: analysis.type, sentiment: analysis.sentiment, priority: analysis.priority, segment },
-            decision: { basePosition, requiredPosition },
-            reason: `Эскалация: ${analysis.type} → мин. ${requiredPosition}`
-        });
-        reasons.push(`Эскалация: ${analysis.type} → мин. ${requiredPosition}`);
-
-        // 1. GEO FILTERING
-        const ticket = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { country: true } });
-        const ticketGeo = await prisma.ticketAnalysis.findUnique({ where: { ticketId } });
-
-        let targetOfficeId: string;
-        const country = (ticket?.country || '').trim().toLowerCase();
-        const isKazakhstan = ['казахстан', 'kazakhstan', 'kz', 'kaz'].includes(country);
-
-        if (!isKazakhstan) {
-            const hqOffices = offices.filter(o => ['Астана', 'Алматы'].includes(o.name));
-            const loads = await Promise.all(hqOffices.map(async o => ({
-                id: o.id,
-                name: o.name,
-                load: (await prisma.manager.aggregate({ where: { officeId: o.id }, _sum: { activeTicketCount: true } }))._sum.activeTicketCount ?? 0
-            })));
-            const sorted = loads.sort((a, b) => a.load - b.load);
-            targetOfficeId = sorted[0].id;
-            trace.push({
-                stage: 'GEO_ROUTING',
-                type: 'FOREIGN_CLIENT',
-                input: { country },
-                analysis: `Клиент из страны "${country}". Согласно правилам, зарубежные клиенты направляются в головные офисы (Астана/Алматы). Выбран офис с минимальной нагрузкой.`,
-                office_loads: loads,
-                decision: { targetOffice: sorted[0].name, officeId: targetOfficeId }
-            });
-            reasons.push(`Гео: зарубежный клиент (${country}) → ${sorted[0].name}`);
-        } else if (ticketGeo?.latitude && ticketGeo?.longitude) {
-            const clientCoords = { lat: ticketGeo.latitude, lng: ticketGeo.longitude };
-            const distances = offices.filter(o => o.latitude && o.longitude).map(o => ({
-                id: o.id,
-                name: o.name,
-                distance: parseFloat(this.geo.calculateDistance(clientCoords, { lat: o.latitude!, lng: o.longitude! }).toFixed(2)),
-                coordinates: { lat: o.latitude, lng: o.longitude }
-            })).sort((a, b) => a.distance - b.distance);
-
-            targetOfficeId = distances[0].id;
-            trace.push({
-                stage: 'GEO_ROUTING',
-                type: 'NEAREST_PROXIMITY',
-                input: clientCoords,
-                analysis: `Найдены координаты клиента. Расчет расстояний до всех ${offices.length} офисов.`,
-                distances,
-                decision: { targetOffice: distances[0].name, distance: distances[0].distance, officeId: targetOfficeId }
-            });
-            reasons.push(`Гео: ближайший офис ${distances[0].name} (${distances[0].distance}km)`);
-        } else {
-            const hqOffices = offices.filter(o => ['Астана', 'Алматы'].includes(o.name));
-            const loads = await Promise.all(hqOffices.map(async o => ({
-                id: o.id,
-                name: o.name,
-                load: (await prisma.manager.aggregate({ where: { officeId: o.id }, _sum: { activeTicketCount: true } }))._sum.activeTicketCount ?? 0
-            })));
-            const sorted = loads.sort((a, b) => a.load - b.load);
-            targetOfficeId = sorted[0].id;
-            trace.push({
-                stage: 'GEO_ROUTING',
-                type: 'FALLBACK_LOAD_BALANCING',
-                input: 'NO_COORDINATES',
-                analysis: 'Координаты клиента не определены. Применяется стратегия балансировки нагрузки между центральными узлами (Астана/Алматы).',
-                office_loads: loads,
-                decision: { targetOffice: sorted[0].name, officeId: targetOfficeId }
-            });
-            reasons.push(`Гео: fallback нагрузки → ${sorted[0].name}`);
-        }
-
-        // 2. SKILL FILTERING
-        const managers = await prisma.manager.findMany({
-            where: { officeId: targetOfficeId },
-            include: { office: true },
-            orderBy: { activeTicketCount: 'asc' },
-        });
-
-        if (!managers.length) {
-            const any = await prisma.manager.findFirst({ orderBy: { activeTicketCount: 'asc' }, include: { office: true } });
-            if (!any) throw new Error('No managers in system');
-            trace.push({ stage: 'SKILL_FILTER', status: 'NO_MANAGERS_IN_OFFICE', fallback: any.fullName });
-            return { managerId: any.id, officeId: any.officeId, reason: reasons.join(' | ') + ` | Нет менеджеров в офисе → fallback на ${any.fullName}`, trace };
-        }
-
-        const mapManager = (m: any) => ({
-            id: m.id,
-            name: m.fullName,
-            position: m.position,
-            skills: m.skills,
-            activeTickets: m.activeTicketCount,
-            office: m.office?.name
-        });
-
-        let eligible = managers.filter(m => {
-            if ((segment === 'VIP' || segment === 'PRIORITY') && !m.skills.includes('VIP')) return false;
-            if (analysis.language === 'KZ' && !m.skills.includes('KZ')) return false;
-            if (analysis.language === 'ENG' && !m.skills.includes('ENG')) return false;
-            return true;
-        });
-
-        const skillTrace = {
-            stage: 'SKILL_FILTER',
-            input: { segment, language: analysis.language },
-            analysis: `Проверка ${managers.length} менеджеров на соответствие сегменту (${segment}) и языку (${analysis.language}).`,
-            candidates_before: managers.map(mapManager),
-            candidates_after: eligible.map(mapManager),
-            was_fallback: eligible.length === 0
-        };
-
-        if (!eligible.length) {
-            eligible = managers;
-            reasons.push(`Навыки: skill fallback`);
-            (skillTrace as any).note = "Ни один менеджер не подошел по навыкам. Используется полный пул офиса.";
-        } else {
-            reasons.push(`Навыки: ${eligible.length} подходят`);
-        }
-        trace.push(skillTrace);
-
-        // 3. POSITION FILTERING
+        // 1. STRATEGY (Preferred Position)
+        const requiredPosition = getMinPositionForType(analysis.type, analysis.priority);
         const requiredRank = positionRank(requiredPosition);
-        let posEligible = eligible.filter(m => positionRank(m.position) >= requiredRank);
-
-        const posTrace = {
-            stage: 'POSITION_FILTER',
-            input: { requiredPosition, requiredRank },
-            analysis: `Фильтрация по грейду (минимум ${requiredPosition}). Текущий пул: ${eligible.length} чел.`,
-            candidates_before: eligible.map(mapManager),
-            candidates_after: posEligible.map(mapManager),
-            was_fallback: posEligible.length === 0
-        };
-
-        if (!posEligible.length) {
-            posEligible = eligible;
-            reasons.push(`Должность: fallback на доступных`);
-            (posTrace as any).note = "Нет менеджеров требуемой должности. Fallback на всех доступных.";
-        } else {
-            reasons.push(`Должность: ${posEligible.length} чел.`);
-        }
-        trace.push(posTrace);
-
-        // 4. ROUND ROBIN
-        const top2 = posEligible.slice(0, 2);
-        const rrKey = `${targetOfficeId}_${requiredPosition}`;
-        const idx = rrCounters.get(rrKey) ?? 0;
-        const selected = top2[idx % top2.length];
-        rrCounters.set(rrKey, idx + 1);
 
         trace.push({
-            stage: 'ROUND_ROBIN',
-            analysis: `Финальный выбор методом Round Robin среди топ-2 кандидатов с минимальной нагрузкой.`,
-            pool: posEligible.map(mapManager),
-            top_candidates: top2.map(mapManager),
-            selected_index: idx % top2.length,
-            decision: { selected: selected.fullName, managerId: selected.id }
+            stage: 'STRATEGY',
+            decision: { requiredPosition, requiredRank },
+            reason: `Предпочтительный грейд: ${requiredPosition} (Type: ${analysis.type}, Priority: ${analysis.priority})`
         });
 
-        reasons.push(`Round Robin → ${selected.fullName}`);
+        // 2. OFFICE CHAINING
+        const ticketAnalysis = await prisma.ticketAnalysis.findUnique({ where: { ticketId } });
+        const clientCoords = ticketAnalysis?.latitude ? { lat: ticketAnalysis.latitude, lng: ticketAnalysis.longitude! } : null;
 
-        return {
-            managerId: selected.id,
-            officeId: targetOfficeId,
-            reason: reasons.join(' | '),
-            trace
-        };
+        let sortedOffices = [...offices];
+        if (clientCoords) {
+            sortedOffices = offices.map(o => ({
+                ...o,
+                distance: o.latitude ? this.geo.calculateDistance(clientCoords, { lat: o.latitude, lng: o.longitude! }) : Infinity
+            })).sort((a, b) => a.distance - b.distance);
+        } else {
+            const city = (analysis.normalizedLocation?.city || ticket.city || '').toLowerCase().trim();
+            sortedOffices = offices.sort((a, b) => {
+                const aName = a.name.toLowerCase().trim();
+                const bName = b.name.toLowerCase().trim();
+                if (aName === city) return -1;
+                if (bName === city) return 1;
+                const hqList = ['астана', 'алматы'];
+                if (hqList.includes(aName)) return -1;
+                if (hqList.includes(bName)) return 1;
+                return 0;
+            });
+        }
+
+        // 3. RETRY CHAIN
+        for (const office of sortedOffices) {
+            const managers = await prisma.manager.findMany({
+                where: { officeId: office.id },
+            });
+
+            if (!managers.length) {
+                trace.push({ stage: 'OFFICE_SCAN', office: office.name, status: 'SKIPPED', reason: 'Нет менеджеров в офисе' });
+                continue;
+            }
+
+            // FILTER: HARD REQUIREMENTS (Competencies)
+            const matchedOnes = managers.filter(m => {
+                // 1. Language (Hard)
+                if (analysis.language === 'KZ' && !m.skills.includes('KZ')) return false;
+                if (analysis.language === 'ENG' && !m.skills.includes('ENG')) return false;
+
+                // 2. VIP/Priority (Hard: Only VIP skill)
+                const isVipPriority = (segment === 'VIP' || segment === 'PRIORITY');
+                if (isVipPriority && !m.skills.includes('VIP')) return false;
+
+                // 3. Data Change (Hard: Position 'Главный_специалист')
+                if (analysis.type === 'Смена_данных' && m.position !== 'Главный_специалист') return false;
+
+                return true;
+            });
+
+            if (!matchedOnes.length) {
+                trace.push({
+                    stage: 'OFFICE_SCAN',
+                    office: office.name,
+                    status: 'SKIPPED',
+                    reason: `Нет менеджеров, соответствующих жестким компетенциям (Type: ${analysis.type}, Segment: ${segment}, Lang: ${analysis.language})`
+                });
+                continue;
+            }
+
+            // SELECTION: Load-Balanced Round Robin (LBRR)
+            // 1. Соответствие грейду 2. Минимальная нагрузка 3. Время последнего назначения (updatedAt)
+            const sortedPool = matchedOnes.sort((a, b) => {
+                const aRank = positionRank(a.position);
+                const bRank = positionRank(b.position);
+
+                const aMatches = aRank >= requiredRank;
+                const bMatches = bRank >= requiredRank;
+
+                // Сначала грейд (если того требует сложность)
+                if (aMatches && !bMatches) return -1;
+                if (!aMatches && bMatches) return 1;
+
+                // Затем нагрузка
+                if (a.activeTicketCount !== b.activeTicketCount) {
+                    return a.activeTicketCount - b.activeTicketCount;
+                }
+
+                // Если нагрузка равна — Round Robin (кто дольше всех не получал тикет)
+                return a.updatedAt.getTime() - b.updatedAt.getTime();
+            });
+
+            const selected = sortedPool[0];
+            const matchingGrade = positionRank(selected.position) >= requiredRank;
+
+            trace.push({
+                stage: 'FINAL_SELECTION',
+                office: office.name,
+                manager: selected.fullName,
+                decision: `LBRR: Выбран ${selected.fullName} (Нагрузка: ${selected.activeTicketCount}, Последнее назначение: ${selected.updatedAt.toISOString()})`,
+                stats: { load: selected.activeTicketCount, position: selected.position }
+            });
+
+            return {
+                managerId: selected.id,
+                officeId: office.id,
+                reason: `Маршрут (LBRR): ${office.name} -> ${selected.fullName} (${selected.position})`,
+                trace
+            };
+        }
+
+        // Если цепочка офисов пройдена и никто не найден — выбрасываем ошибку.
+        // Мы не можем назначать тикет менеджеру, который не соответствует Hard Skills.
+        throw new Error(`Не удалось найти подходящего менеджера (Hard Skills: VIP=${segment === 'VIP' || segment === 'PRIORITY'}, Lang=${analysis.language}, Type=${analysis.type})`);
     }
 }
-
-const rrCounters = new Map<string, number>();
