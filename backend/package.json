@@ -14,8 +14,10 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.30",
     "@prisma/adapter-pg": "^6.4.1",
     "@prisma/client": "^6.4.1",
+    "ai": "^6.0.97",
     "axios": "^1.13.5",
     "cors": "^2.8.6",
     "csv-parse": "^6.1.0",
