@@ -351,8 +351,8 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                     <div className="pt-4 border-t border-[#233642] flex items-center gap-3">
                                         <Building2 size={16} className="text-[#5b6f7c]" />
                                         <div className="flex flex-col">
-                                            <span className="text-[11px] font-bold text-[#cbd3d9]">{ticket?.office?.name || 'In Queue'}</span>
-                                            <span className="text-[9px] text-[#5b6f7c] uppercase font-bold tracking-tight italic">Operational Node</span>
+                                            <span className="text-[11px] font-bold text-[#cbd3d9]">{ticket?.office?.name || 'В очереди'}</span>
+                                            <span className="text-[9px] text-[#5b6f7c] uppercase font-bold tracking-tight italic">Офис обслуживания</span>
                                         </div>
                                     </div>
                                 </div>
@@ -362,24 +362,24 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                             <section>
                                 <div className="flex items-center gap-2 mb-6">
                                     <Navigation2 size={14} className="text-amber-500" />
-                                    <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-[0.2em]">Geo-Intelligence</h4>
+                                    <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-[0.2em]">Гео-аналитика</h4>
                                 </div>
                                 <div className="space-y-4">
                                     <div className="bg-[#182833]/50 p-4 rounded-xl border border-[#233642]">
-                                        <p className="text-[10px] text-[#5b6f7c] font-black uppercase mb-3">Calculated Coordinates</p>
+                                        <p className="text-[10px] text-[#5b6f7c] font-black uppercase mb-3">Координаты</p>
                                         {ticket?.analysis?.latitude ? (
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div className="bg-black/40 p-2 rounded-lg border border-[#233642]">
-                                                    <span className="block text-[8px] text-[#5b6f7c] font-bold uppercase mb-1">LAT</span>
+                                                    <span className="block text-[8px] text-[#5b6f7c] font-bold uppercase mb-1">ШИРОТА</span>
                                                     <span className="text-[11px] text-white font-mono">{ticket.analysis.latitude.toFixed(6)}</span>
                                                 </div>
                                                 <div className="bg-black/40 p-2 rounded-lg border border-[#233642]">
-                                                    <span className="block text-[8px] text-[#5b6f7c] font-bold uppercase mb-1">LNG</span>
+                                                    <span className="block text-[8px] text-[#5b6f7c] font-bold uppercase mb-1">ДОЛГОТА</span>
                                                     <span className="text-[11px] text-white font-mono">{ticket.analysis.longitude.toFixed(6)}</span>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p className="text-[10px] text-[#5b6f7c] italic">Coordinates pending or failed</p>
+                                            <p className="text-[10px] text-[#5b6f7c] italic">Координаты не определены</p>
                                         )}
                                     </div>
                                     <div className="flex items-start gap-3 p-2">
@@ -400,18 +400,18 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                             <section>
                                 <div className="flex items-center gap-2 mb-6">
                                     <Cpu size={14} className="text-emerald-500" />
-                                    <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-[0.2em]">Processing Latency</h4>
+                                    <h4 className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-[0.2em]">Производительность</h4>
                                 </div>
                                 <div className="space-y-4">
                                     {[
-                                        { label: 'AI Inference', val: ticket?.analysis?.aiDuration, color: 'bg-primary' },
-                                        { label: 'Geo Synthesis', val: ticket?.analysis?.geoDuration, color: 'bg-amber-500' },
-                                        { label: 'Routing Logic', val: ticket?.analysis?.routingDuration, color: 'bg-emerald-500' },
+                                        { label: 'AI Анализ', val: ticket?.analysis?.aiDuration, color: 'bg-primary' },
+                                        { label: 'Гео-синтез', val: ticket?.analysis?.geoDuration, color: 'bg-amber-500' },
+                                        { label: 'Маршрутизация', val: ticket?.analysis?.routingDuration, color: 'bg-emerald-500' },
                                     ].map(stat => (
                                         <div key={stat.label}>
                                             <div className="flex justify-between text-[9px] font-black uppercase mb-1.5">
                                                 <span className="text-[#5b6f7c]">{stat.label}</span>
-                                                <span className="text-white font-mono">{stat.val || 0}ms</span>
+                                                <span className="text-white font-mono">{stat.val || 0}мс</span>
                                             </div>
                                             <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden">
                                                 <motion.div
@@ -423,9 +423,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                         </div>
                                     ))}
                                     <div className="pt-4 mt-2 border-t border-[#233642] flex justify-between items-center">
-                                        <span className="text-[10px] text-white font-black uppercase tracking-widest">Total E2E</span>
+                                        <span className="text-[10px] text-white font-black uppercase tracking-widest">Общее время (E2E)</span>
                                         <div className="bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
-                                            <span className="text-xs font-black text-emerald-400 font-mono">{ticket?.analysis?.totalDuration || 0}ms</span>
+                                            <span className="text-xs font-black text-emerald-400 font-mono">{ticket?.analysis?.totalDuration || 0}мс</span>
                                         </div>
                                     </div>
                                 </div>
@@ -443,19 +443,19 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                 <div className="p-2 bg-[#182833] rounded-xl border border-[#233642]">
                                                     <MessageSquare size={16} className="text-[#5b6f7c]" />
                                                 </div>
-                                                <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">Input Content</h3>
+                                                <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">Содержание обращения</h3>
                                             </div>
                                             <div className="bg-[#182833]/30 border border-[#233642] p-8 rounded-3xl relative">
                                                 <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl pointer-events-none text-white select-none">"</div>
                                                 <p className="text-sm text-[#cbd3d9] leading-[1.8] font-medium italic relative z-10 antialiased">
-                                                    {ticket?.description || 'No textual content provided.'}
+                                                    {ticket?.description || 'Текст обращения не предоставлен.'}
                                                 </p>
                                             </div>
                                             {ticket?.attachments && (
                                                 <div className="flex items-center gap-4 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
                                                     <ShieldAlert size={18} className="text-amber-500 shrink-0" />
                                                     <div className="flex flex-col">
-                                                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Digital Payload Attached</span>
+                                                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Цифровое вложение</span>
                                                         <span className="text-[11px] text-[#cbd3d9] font-mono truncate max-w-md">{ticket.attachments}</span>
                                                     </div>
                                                 </div>
@@ -467,7 +467,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                 <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
                                                     <BrainCircuit size={16} className="text-primary" />
                                                 </div>
-                                                <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">AI Attributes</h3>
+                                                <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">AI Предикты</h3>
                                             </div>
                                             <div className="bg-[#182833] border border-primary/20 p-8 rounded-3xl relative overflow-hidden shadow-2xl shadow-primary/5">
                                                 <div className="absolute -right-8 -bottom-8 text-primary/5">
@@ -476,25 +476,26 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                 <div className="relative z-10 space-y-6">
                                                     <div className="space-y-4">
                                                         <div className="flex justify-between items-end border-b border-[#233642] pb-3">
-                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Classification</span>
-                                                            <span className="text-xs font-black text-white uppercase">{ticket?.analysis?.type || '—'}</span>
+                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Категория</span>
+                                                            <span className="text-xs font-black text-white uppercase">{String(ticket?.analysis?.type || '—').replace(/_/g, ' ')}</span>
                                                         </div>
                                                         <div className="flex justify-between items-end border-b border-[#233642] pb-3">
-                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Sentiment</span>
+                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Тональность</span>
                                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded ${ticket?.analysis?.sentiment === 'NEGATIVE' ? 'bg-red-500/10 text-red-500' :
                                                                 ticket?.analysis?.sentiment === 'POSITIVE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'
                                                                 }`}>
-                                                                {ticket?.analysis?.sentiment || 'NEUTRAL'}
+                                                                {ticket?.analysis?.sentiment === 'NEGATIVE' ? 'НЕГАТИВ' :
+                                                                    ticket?.analysis?.sentiment === 'POSITIVE' ? 'ПОЗИТИВ' : 'НЕЙТРАЛЬНО'}
                                                             </span>
                                                         </div>
                                                         <div className="flex justify-between items-end border-b border-[#233642] pb-3">
-                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Language</span>
+                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Язык</span>
                                                             <span className="text-xs font-black text-white">{ticket?.analysis?.language || 'RU'}</span>
                                                         </div>
                                                     </div>
                                                     <div className="pt-2">
                                                         <div className="flex items-center justify-between mb-3">
-                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Priority</span>
+                                                            <span className="text-[10px] font-bold text-[#5b6f7c] uppercase tracking-wider">Приоритет</span>
                                                             <span className={`text-xl font-black ${(ticket?.analysis?.priority ?? 0) >= 8 ? 'text-red-500' : (ticket?.analysis?.priority ?? 0) >= 6 ? 'text-amber-500' : 'text-primary'}`}>
                                                                 P{ticket?.analysis?.priority || 1}
                                                             </span>
@@ -518,7 +519,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                             <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
                                                 <Route size={16} className="text-primary" />
                                             </div>
-                                            <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">Decision Engine Timeline</h3>
+                                            <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">Хронология решений</h3>
                                         </div>
 
                                         <div className="relative pl-8 space-y-10">
@@ -529,9 +530,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                     <Zap size={8} className="text-primary" />
                                                 </div>
                                                 <div className="bg-[#182833]/20 border border-[#233642] p-6 rounded-2xl">
-                                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Step 01: Identification</h4>
+                                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Шаг 01: Идентификация</h4>
                                                     <p className="text-sm font-bold text-[#cbd3d9]">
-                                                        {ticket?.analysis?.summary || 'Extracting primary intent and context...'}
+                                                        {ticket?.analysis?.summary || 'Анализ контента и извлечение контекста...'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -547,11 +548,11 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                                 {getStepIcon(part)}
                                                             </span>
                                                             <h4 className={`text-[10px] font-black uppercase tracking-widest ${idx === reasonParts.length - 1 ? 'text-emerald-400' : 'text-[#3489db]'}`}>
-                                                                Step {String(idx + 2).padStart(2, '0')}: {part.split(':')[0]}
+                                                                Шаг {String(idx + 2).padStart(2, '0')}: {part.split(':')[0]}
                                                             </h4>
                                                         </div>
                                                         <p className="text-sm font-medium text-[#cbd3d9] leading-relaxed">
-                                                            {part.includes(':') ? part.split(':').slice(1).join(':').trim() : part}
+                                                            {part.includes(':') ? part.split(':').slice(1).join(':').trim().replace(/_/g, ' ') : part.replace(/_/g, ' ')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -566,10 +567,10 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                             <div className="p-2 bg-amber-500/10 rounded-xl border border-amber-500/20">
                                                 <ShieldAlert size={16} className="text-amber-500" />
                                             </div>
-                                            <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">Technical Auditor Mode</h3>
+                                            <h3 className="text-xs font-black text-[#5b6f7c] uppercase tracking-[0.2em]">Режим аудитора</h3>
                                         </div>
                                         <span className="text-[9px] font-mono text-amber-500/50 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 uppercase">
-                                            Debug Version 2.4.b-stable
+                                            Версия лога 3.0-ULTRA
                                         </span>
                                     </div>
 
@@ -581,7 +582,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                         ) : (
                                             <div className="p-10 text-center border-2 border-dashed border-[#233642] rounded-3xl">
                                                 <Terminal className="mx-auto text-[#5b6f7c] mb-4 opacity-20" size={40} />
-                                                <p className="text-[#5b6f7c] font-mono text-xs">No audit trace available for this ticket version.</p>
+                                                <p className="text-[#5b6f7c] font-mono text-xs">Нет данных трассировки для этого обращения.</p>
                                             </div>
                                         )}
                                     </div>
@@ -593,19 +594,19 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                 <div className="pt-8 border-t border-[#233642] flex flex-wrap gap-8 justify-between">
                                     <div className="flex items-center gap-6">
                                         <div className="flex flex-col">
-                                            <span className="text-[9px] text-[#5b6f7c] font-black uppercase mb-1">Ingestion Date</span>
-                                            <span className="text-[11px] text-[#cbd3d9] font-mono">{ticket?.createdAt ? new Date(ticket.createdAt).toLocaleString() : '—'}</span>
+                                            <span className="text-[9px] text-[#5b6f7c] font-black uppercase mb-1">Дата поступления</span>
+                                            <span className="text-[11px] text-[#cbd3d9] font-mono">{ticket?.createdAt ? new Date(ticket.createdAt).toLocaleString('ru-RU') : '—'}</span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[9px] text-[#5b6f7c] font-black uppercase mb-1">Segment</span>
+                                            <span className="text-[9px] text-[#5b6f7c] font-black uppercase mb-1">Сегмент</span>
                                             <span className={`text-[11px] font-black ${ticket?.segment === 'VIP' ? 'text-amber-500' : 'text-primary'}`}>
-                                                {ticket?.segment || 'MASS'}
+                                                {ticket?.segment === 'VIP' ? 'VIP' : ticket?.segment === 'PRIORITY' ? 'Приоритетный' : 'Массовый'}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 text-[#5b6f7c]">
                                         <Layers size={14} />
-                                        <span className="text-[9px] font-bold uppercase tracking-wider italic">FIRE Trace v2.4</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider italic">FIRE Trace v3.0</span>
                                     </div>
                                 </div>
                             </div>

@@ -60,7 +60,7 @@ const TABS: Array<{
 }> = [
         {
             key: 'offices',
-            label: 'Offices',
+            label: 'Офисы',
             icon: <Building2 size={16} />,
             description: 'Импорт офисов — база для гео-роутинга. Офисы хранят координаты для поиска ближайшего отделения.',
             order: 1,
@@ -71,18 +71,18 @@ const TABS: Array<{
         },
         {
             key: 'managers',
-            label: 'Managers',
+            label: 'Менеджеры',
             icon: <Users size={16} />,
             description: 'Импорт менеджеров — офисы должны быть загружены заранее для привязки.',
             order: 2,
-            columns: 'ФИО, Должность, Навыки, Офис',
+            columns: 'ФИО, Должность, Навыки, Офис, Количество обращений в работе',
             example:
-                'ФИО,Должность,Навыки,Офис\nСергей Власов,LEAD_SPECIALIST,"VIP,ENG,KZ",Алматы\nЕлена Ким,LEAD_SPECIALIST,"VIP,KZ",Астана\nАлексей Тен,SPECIALIST,"KZ,ENG",Астана',
+                'ФИО,Должность,Навыки,Офис,Количество обращений в работе\nСергей Власов,Ведущий специалист,"VIP,ENG,KZ",Алматы,3\nЕлена Ким,Главный специалист,"VIP,KZ",Астана,0\nАлексей Тен,Специалист,"KZ,ENG",Астана,2',
             action: (csv) => importService.importManagers(csv) as any,
         },
         {
             key: 'tickets',
-            label: 'Tickets',
+            label: 'Обращения',
             icon: <FileText size={16} />,
             description: 'Импорт обращений — движок автоматически выполнит AI-анализ и назначит менеджера.',
             order: 3,

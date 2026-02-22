@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { AppError } from '../utils/app-error.js';
 
 export type AIAnalysisResult = {
-    type: 'COMPLAINT' | 'DATA_CHANGE' | 'CONSULTATION' | 'CLAIM' | 'APP_MALFUNCTION' | 'FRAUD' | 'SPAM';
+    type: 'Жалоба' | 'Смена_данных' | 'Консультация' | 'Претензия' | 'Неработоспособность_приложения' | 'Мошеннические_действия' | 'Спам';
     sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
     priority: number;
     language: 'KZ' | 'ENG' | 'RU';
@@ -10,7 +10,7 @@ export type AIAnalysisResult = {
     normalizedLocation?: { city: string; region?: string; country: string };
 };
 
-const VALID_TYPES = ['COMPLAINT', 'DATA_CHANGE', 'CONSULTATION', 'CLAIM', 'APP_MALFUNCTION', 'FRAUD', 'SPAM'];
+const VALID_TYPES = ['Жалоба', 'Смена_данных', 'Консультация', 'Претензия', 'Неработоспособность_приложения', 'Мошеннические_действия', 'Спам'];
 const VALID_SENTIMENTS = ['POSITIVE', 'NEUTRAL', 'NEGATIVE'];
 const VALID_LANGUAGES = ['KZ', 'ENG', 'RU'];
 
@@ -18,15 +18,21 @@ const SYSTEM_PROMPT = `You are a support ticket classifier for Freedom Broker (f
 Analyze the customer's message and classify it.
 
 CRITICAL FRAUD DETECTION RULES:
-- If the customer mentions "fraud", "scam", "stolen money", "unauthorized transaction", "suspicious broker", or doubts the legality of operations (e.g. "is this legal?", "victim of scammers?") -> ALWAYS type = FRAUD and priority 10.
-- Even if it's just a question about being a victim, classify as FRAUD to ensure Lead Specialist review.
+- If the customer mentions "fraud", "scam", "stolen money", "unauthorized transaction", "suspicious broker", or doubts the legality of operations (e.g. "is this legal?", "victim of scammers?") -> ALWAYS type = Мошеннические_действия and priority 10.
+- Even if it's just a question about being a victim, classify as Мошеннические_действия to ensure Lead Specialist review.
 
 LOCATION NORMALIZATION:
 - Extract the city and region from the message manually if possible, or use provided context to normalize it.
-- Example: "Pavlodar in North Kazakhstan region" should be normalized to City: Pavlodar, Region: Pavlodar region (because Pavlodar is not in North Kazakhstan).
 
 Classification rules:
-- Types: COMPLAINT (general negative), DATA_CHANGE (passport, name), CONSULTATION (informational), CLAIM (demanding refund/compensation), APP_MALFUNCTION (bugs, SMS, app errors), FRAUD (suspicious activities), SPAM.
+- Types: 
+  - Жалоба (общий негатив)
+  - Смена_данных (смена паспорта, ФИО, телефона)
+  - Консультация (вопросы, информация)
+  - Претензия (требование возврата, компенсации)
+  - Неработоспособность_приложения (баги, СМС, ошибки в приложении)
+  - Мошеннические_действия (подозрительная активность)
+  - Спам (реклама)
 - Sentiments: POSITIVE, NEUTRAL, NEGATIVE.
 - Priority: 1-10.
 
@@ -44,9 +50,9 @@ const VISION_SYSTEM_PROMPT = `You are a support ticket classifier for Freedom Br
 Analyze image + text.
 
 RULES:
-- Suspicious transactions/scams -> FRAUD.
-- App errors -> APP_MALFUNCTION.
-- Documents -> DATA_CHANGE.
+- Suspicious transactions/scams -> Мошеннические_действия.
+- App errors -> Неработоспособность_приложения.
+- Documents -> Смена_данных.
 
 Respond ONLY with JSON: { "type": "TYPE", "sentiment": "SENTIMENT", "priority": 1-10, "language": "KZ|ENG|RU", "summary": "RU text", "normalizedLocation": { "city": "Name", "region": "Name region", "country": "Kazakhstan" } }`;
 
@@ -55,7 +61,6 @@ export class AIService {
 
     /**
      * Анализ тикета с текстом (и опционально вложением).
-     * gpt-4o-mini поддерживает vision — если attachment является URL изображения, отправляем его.
      */
     async analyzeTicket(description: string, segment: string, attachments?: string | null): Promise<AIAnalysisResult> {
         try {
@@ -66,11 +71,11 @@ export class AIService {
             const segmentRules = `
 Client Category: ${segment}
 Priority Rules:
-- FRAUD: priority 10.
-- CLAIM (возмещение/претензия): priority 8-10.
-- APP_MALFUNCTION (сбой): priority 6-8.
-- DATA_CHANGE: priority 5-7.
-- SPAM: priority 0.
+- Мошеннические_действия: priority 10.
+- Претензия (возмещение/претензия): priority 8-10.
+- Неработоспособность_приложения (сбой): priority 6-8.
+- Смена_данных: priority 5-7.
+- Спам: priority 0.
 - VIP special rule: IF segment is VIP, priority MUST BE at least 6.
 - VIP + NEGATIVE rule: IF segment is VIP AND sentiment is NEGATIVE, priority MUST BE 8-10.
 `;
@@ -78,7 +83,6 @@ Priority Rules:
             let messages: OpenAI.ChatCompletionMessageParam[];
 
             if (hasAttachmentUrl) {
-                // Vision mode — отправляем текст + изображение
                 messages = [
                     { role: 'system', content: VISION_SYSTEM_PROMPT + '\n' + segmentRules },
                     {
@@ -90,7 +94,6 @@ Priority Rules:
                     },
                 ];
             } else {
-                // Text-only mode
                 const userContent = attachments
                     ? `${description}\n\n[Вложение: ${attachments}]`
                     : description;
@@ -111,11 +114,9 @@ Priority Rules:
             const content = response.choices[0].message.content;
             if (!content) throw new AppError('AI: empty response');
 
-            // Извлекаем JSON из ответа (на случай если модель обернула в markdown)
             const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-            const parsed = JSON.parse(jsonStr) as AIAnalysisResult;
+            const parsed = JSON.parse(jsonStr);
 
-            // Валидация и нормализация ответа
             const validated = this.validateResult(parsed);
 
             console.log(`[AI] → ${validated.type} | ${validated.sentiment} | P${validated.priority} | ${validated.language}`);
@@ -128,13 +129,10 @@ Priority Rules:
         }
     }
 
-    /**
-     * Валидация и нормализация AI ответа — гарантирует корректные значения.
-     */
     private validateResult(raw: any): AIAnalysisResult {
-        const type = VALID_TYPES.includes(raw.type) ? raw.type : 'CONSULTATION';
-        const sentiment = VALID_SENTIMENTS.includes(raw.sentiment) ? raw.sentiment : 'NEUTRAL';
-        const language = VALID_LANGUAGES.includes(raw.language) ? raw.language : 'RU';
+        const type = VALID_TYPES.includes(raw.type) ? raw.type as any : 'Консультация';
+        const sentiment = VALID_SENTIMENTS.includes(raw.sentiment) ? raw.sentiment as any : 'NEUTRAL';
+        const language = VALID_LANGUAGES.includes(raw.language) ? raw.language as any : 'RU';
         const priority = Math.min(10, Math.max(1, Number(raw.priority) || 5));
         const summary = typeof raw.summary === 'string' ? raw.summary : 'Результат анализа.';
         const normalizedLocation = raw.normalizedLocation && typeof raw.normalizedLocation === 'object' ? {

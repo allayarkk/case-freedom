@@ -29,7 +29,7 @@ function getVal(row: Record<string, string>, keys: string[]): string {
  */
 function getDefaultAnalysis(segment: string, hasAttachment: boolean): AIAnalysisResult {
     return {
-        type: 'CONSULTATION',
+        type: 'Консультация',
         sentiment: 'NEUTRAL',
         priority: segment === 'VIP' ? 6 : 5,
         language: 'RU',
@@ -128,7 +128,7 @@ export class TicketService {
             version: "3.0-ULTRA-DIAGNOSTIC",
             steps: [
                 {
-                    name: "AI_INFERENCE_CORE",
+                    name: "AI_АНАЛИЗ_КОНТЕНТА",
                     description: "Инференс языковой модели для классификации и извлечения атрибутов",
                     payload: {
                         system_instructions: "FRAUD_DETECTION, LOCATION_NORMALIZATION, CATEGORIZATION",
@@ -138,14 +138,14 @@ export class TicketService {
                     },
                     response: aiResult,
                     logic: {
-                        priority_derivation: aiResult.priority >= 10 ? "Критический уровень (определено ИИ как FRAUD или риск потери клиента)" :
-                            aiResult.priority >= 8 ? "Высокий приоритет (негативный sentiment и VIP сегмент)" : "Стандартный приоритет",
-                        fraud_check: description.toLowerCase().match(/fraud|scam|stolen|unauthorized|suspicious|legal|legalit|victim/) ? "POSITIVE (Triggered keywords)" : "NEGATIVE",
+                        priority_derivation: aiResult.priority >= 10 ? "Критический уровень (определено ИИ как Мошеннические_действия или риск потери клиента)" :
+                            aiResult.priority >= 8 ? "Высокий приоритет (негативный тон и VIP сегмент)" : "Стандартный приоритет",
+                        fraud_check: description.toLowerCase().match(/fraud|scam|stolen|unauthorized|suspicious|legal|legalit|victim|мошен|краж|списан|незакон/) ? "ПОЛОЖИТЕЛЬНО (Обнаружены ключевые слова)" : "ОТРИЦАТЕЛЬНО",
                     },
                     duration: aiDuration
                 },
                 {
-                    name: "GEO_SYNTHESIS_CASCADE",
+                    name: "ГЕО_СИНТЕЗ_И_ПОИСК",
                     description: "Многоуровневый поиск географических координат",
                     payload: {
                         raw_input: { city: data.city, oblast: data.oblast, country: data.country },
@@ -156,20 +156,21 @@ export class TicketService {
                     duration: geoDuration
                 },
                 {
-                    name: "ROUTING_ENGINE_DECISIONS",
+                    name: "ДВИЖОК_МАРШРУТИЗАЦИИ",
                     description: "Алгоритмический подбор оптимального исполнителя",
-                    trace: routing.trace,
+                    payload: routing,
                     duration: routingDuration
                 }
-            ]
+            ],
+            totalDuration
         };
 
         // 6. Сохраняем анализ и тайминги
         await prisma.ticketAnalysis.create({
             data: {
                 ticketId: ticket.id,
-                type: aiResult.type,
-                sentiment: aiResult.sentiment,
+                type: aiResult.type as any,
+                sentiment: aiResult.sentiment as any,
                 priority: aiResult.priority,
                 language: aiResult.language,
                 summary: aiResult.summary,

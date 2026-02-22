@@ -59,7 +59,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
                 <div className="flex gap-1.5 items-center">
                     <span className={`px-1 rounded-[2px] font-bold text-[9px] ${ticket.segment === 'VIP' ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-500/20 text-slate-400'
                         }`}>
-                        {ticket.segment === 'VIP' ? 'VIP' : 'MASS'}
+                        {ticket.segment === 'VIP' ? 'VIP' : ticket.segment === 'PRIORITY' ? 'ПРИОР' : 'МАСС'}
                     </span>
                     <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
                 </div>

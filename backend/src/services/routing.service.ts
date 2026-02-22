@@ -14,9 +14,9 @@ interface RoutingResult {
  * на основе типа обращения и тональности.
  */
 const POSITION_HIERARCHY: Record<string, number> = {
-    SPECIALIST: 1,
-    SENIOR_SPECIALIST: 2,
-    LEAD_SPECIALIST: 3,
+    Специалист: 1,
+    Ведущий_специалист: 2,
+    Главный_специалист: 3,
 };
 
 function positionRank(pos: string): number {
@@ -25,10 +25,10 @@ function positionRank(pos: string): number {
 
 function getMinPositionForType(type: string): string {
     switch (type) {
-        case 'FRAUD': return 'LEAD_SPECIALIST';
-        case 'CLAIM': return 'SENIOR_SPECIALIST';
-        case 'DATA_CHANGE': return 'SENIOR_SPECIALIST';
-        default: return 'SPECIALIST';
+        case 'Мошеннические_действия': return 'Главный_специалист';
+        case 'Претензия': return 'Ведущий_специалист';
+        case 'Смена_данных': return 'Ведущий_специалист';
+        default: return 'Специалист';
     }
 }
 
@@ -39,12 +39,12 @@ function escalateByContext(
     segment: string
 ): string {
     let minRank = positionRank(basePosition);
-    if (sentiment === 'NEGATIVE' && priority >= 8) minRank = Math.max(minRank, positionRank('SENIOR_SPECIALIST'));
-    if (segment === 'VIP' && sentiment === 'NEGATIVE') minRank = Math.max(minRank, positionRank('SENIOR_SPECIALIST'));
-    if (priority >= 10) minRank = Math.max(minRank, positionRank('LEAD_SPECIALIST'));
+    if (sentiment === 'NEGATIVE' && priority >= 8) minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
+    if (segment === 'VIP' && sentiment === 'NEGATIVE') minRank = Math.max(minRank, positionRank('Ведущий_специалист'));
+    if (priority >= 10) minRank = Math.max(minRank, positionRank('Главный_специалист'));
 
     const entries = Object.entries(POSITION_HIERARCHY);
-    return entries.find(([, rank]) => rank === minRank)?.[0] ?? 'SPECIALIST';
+    return entries.find(([, rank]) => rank === minRank)?.[0] ?? 'Специалист';
 }
 
 export class RoutingService {

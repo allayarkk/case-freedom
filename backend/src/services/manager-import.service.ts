@@ -1,13 +1,13 @@
 import prisma from '../config/database.js';
 
-type Position = 'SPECIALIST' | 'SENIOR_SPECIALIST' | 'LEAD_SPECIALIST';
+type Position = 'Специалист' | 'Ведущий_специалист' | 'Главный_специалист';
 type Skill = 'VIP' | 'ENG' | 'KZ';
 
 function mapPosition(val: string): Position {
     const v = val.toUpperCase().trim().replace(/\s+/g, '_');
-    if (v.startsWith('LEAD') || v.includes('ГЛАВН')) return 'LEAD_SPECIALIST';
-    if (v.startsWith('SENIOR') || v.startsWith('ВЕДУЩ')) return 'SENIOR_SPECIALIST';
-    return 'SPECIALIST';
+    if (v.includes('ГЛАВН') || v.includes('LEAD')) return 'Главный_специалист';
+    if (v.includes('ВЕДУЩ') || v.includes('SENIOR')) return 'Ведущий_специалист';
+    return 'Специалист';
 }
 
 function mapSkills(val: string): Skill[] {
@@ -32,6 +32,7 @@ export class ManagerImportService {
                 const officeName = row['Офис'] ?? row['Office'] ?? '';
                 const positionRaw = row['Должность'] ?? row['Position'] ?? 'SPECIALIST';
                 const skillsRaw = row['Навыки'] ?? row['Skills'] ?? '';
+                const activeTicketsRaw = row['Количество обращений в работе'] ?? row['ActiveTickets'] ?? '0';
 
                 if (!fullName) { errors.push('Нет ФИО'); failed++; continue; }
                 if (!officeName) { errors.push(`${fullName}: нет Офис`); failed++; continue; }
@@ -42,9 +43,10 @@ export class ManagerImportService {
                 await prisma.manager.create({
                     data: {
                         fullName,
-                        position: mapPosition(positionRaw),
+                        position: mapPosition(positionRaw) as any,
                         officeId: office.id,
                         skills: mapSkills(skillsRaw),
+                        activeTicketCount: parseInt(activeTicketsRaw) || 0,
                     },
                 });
                 created++;

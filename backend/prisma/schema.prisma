@@ -8,13 +8,13 @@ datasource db {
 }
 
 enum TicketType {
-  COMPLAINT
-  DATA_CHANGE
-  CONSULTATION
-  CLAIM
-  APP_MALFUNCTION
-  FRAUD
-  SPAM
+  Жалоба
+  Смена_данных
+  Консультация
+  Претензия
+  Неработоспособность_приложения
+  Мошеннические_действия
+  Спам
 }
 
 enum Sentiment {
@@ -36,9 +36,9 @@ enum Language {
 }
 
 enum ManagerPosition {
-  SPECIALIST
-  SENIOR_SPECIALIST
-  LEAD_SPECIALIST
+  Специалист
+  Ведущий_специалист
+  Главный_специалист
 }
 
 enum ManagerSkill {
