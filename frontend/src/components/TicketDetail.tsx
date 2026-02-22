@@ -458,7 +458,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                         <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Цифровое вложение</span>
                                                     </div>
                                                     {ticket.attachments.startsWith('data:image') || ticket.attachments.match(/\\.(jpeg|jpg|png|gif|webp)$/i) || (ticket.attachments.length > 100 && !ticket.attachments.includes(' ')) ? (
-                                                        <img src={ticket.attachments.startsWith('data:') ? ticket.attachments : `data:image/jpeg;base64,${ticket.attachments}`} alt="Вложение" className="w-full max-h-[400px] object-contain rounded-xl border border-amber-500/20" />
+                                                        <img src={ticket.attachments.startsWith('data:') ? ticket.attachments :
+                                                            (ticket.attachments.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? `/api/v1/attachments/${ticket.attachments}` :
+                                                                `data:image/jpeg;base64,${ticket.attachments}`)} alt="Вложение" className="w-full max-h-[400px] object-contain rounded-xl border border-amber-500/20" />
                                                     ) : (
                                                         <span className="text-[11px] text-[#cbd3d9] font-mono truncate max-w-md ml-7">{ticket.attachments}</span>
                                                     )}

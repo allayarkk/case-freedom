@@ -59,7 +59,9 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
             {ticket.attachments && (ticket.attachments.startsWith('data:image') || ticket.attachments.match(/\.(jpeg|jpg|png|gif|webp)$/i) || (ticket.attachments.length > 100 && !ticket.attachments.includes(' '))) && (
                 <div className="mt-2 w-full h-16 rounded overflow-hidden border border-[#233642]/50 bg-black/20">
                     <img
-                        src={ticket.attachments.startsWith('data:') ? ticket.attachments : `data:image/jpeg;base64,${ticket.attachments}`}
+                        src={ticket.attachments.startsWith('data:') ? ticket.attachments :
+                            (ticket.attachments.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? `/api/v1/attachments/${ticket.attachments}` :
+                                `data:image/jpeg;base64,${ticket.attachments}`)}
                         alt="Вложение"
                         className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity"
                     />

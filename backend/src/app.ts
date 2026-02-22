@@ -16,6 +16,9 @@ app.use((req, _res, next) => {
     next();
 });
 
+import path from 'path';
+
+app.use('/api/v1/attachments', express.static(path.join(process.cwd(), 'attachments')));
 app.use('/api/v1', routes);
 app.use((_req, res) => res.status(404).json({ success: false, error: { message: 'Not found' } }));
 app.use(errorHandler);

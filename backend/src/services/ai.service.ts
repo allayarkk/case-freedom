@@ -59,7 +59,7 @@ export class AIService {
         try {
             const isImage = !!attachments && (attachments.startsWith('data:image/') || (attachments.length > 100 && !attachments.includes(' ')));
 
-            const segmentRules = `Доп. правило для VIP: Если сегмент VIP, приоритет не может быть ниже 8.`;
+            const segmentRules = `Доп. правило: Если сегмент VIP или PRIORITY, приоритет не может быть ниже 7. Текущий сегмент: ${segment}`;
 
             const imageUrl = isImage && !attachments!.startsWith('data:') ? `data:image/jpeg;base64,${attachments}` : attachments;
 
