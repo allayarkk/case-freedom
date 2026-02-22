@@ -28,7 +28,7 @@ export function DashboardToolbar({
     return (
         <div className="h-14 bg-[#111b21] border-b border-[#233642] flex items-center px-4 justify-between shrink-0 relative z-30">
             <div className="flex items-center gap-4">
-                <h1 className="text-foreground font-bold text-sm uppercase tracking-wider">ВОРОНКА ОБРАЩЕНИЙ</h1>
+                <h1 className="text-foreground font-bold text-sm uppercase tracking-wider">Тикеты</h1>
                 <div className="h-6 w-[1px] bg-[#233642]" />
                 <div className="relative group">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5b6f7c]" />

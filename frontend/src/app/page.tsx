@@ -9,16 +9,16 @@ import { TicketDetail } from '@/components/TicketDetail';
 
 const PRIORITY_MAP: Record<number, { label: string; color: string }> = {
     0: { label: 'НЕ РАЗОБРАНО', color: 'bg-slate-500' },
-    10: { label: 'КРИТИЧЕСКИЙ', color: 'bg-red-500' },
-    9: { label: 'ОЧЕНЬ ВЫСОКИЙ', color: 'bg-red-400' },
-    8: { label: 'ВЫСОКИЙ', color: 'bg-orange-500' },
-    7: { label: 'ВЫШЕ СРЕДНЕГО', color: 'bg-amber-500' },
-    6: { label: 'СРЕДНИЙ+', color: 'bg-yellow-500' },
-    5: { label: 'СРЕДНИЙ', color: 'bg-lime-500' },
-    4: { label: 'НИЖЕ СРЕДНЕГО', color: 'bg-green-500' },
-    3: { label: 'НИЗКИЙ', color: 'bg-teal-500' },
-    2: { label: 'ОЧЕНЬ НИЗКИЙ', color: 'bg-cyan-500' },
-    1: { label: 'МИНИМАЛЬНЫЙ', color: 'bg-sky-500' },
+    10: { label: '10 (СРОЧНО)', color: 'bg-red-500' },
+    9: { label: '9', color: 'bg-red-400' },
+    8: { label: '8', color: 'bg-orange-500' },
+    7: { label: '7', color: 'bg-amber-500' },
+    6: { label: '6', color: 'bg-yellow-500' },
+    5: { label: '5', color: 'bg-lime-500' },
+    4: { label: '4', color: 'bg-green-500' },
+    3: { label: '3', color: 'bg-teal-500' },
+    2: { label: '2', color: 'bg-cyan-500' },
+    1: { label: '1', color: 'bg-sky-500' },
 };
 
 function DashboardContent() {

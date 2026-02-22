@@ -34,4 +34,7 @@ router.get('/analytics/imports/:id', c.analyticsController.getImportSessionDetai
 router.post('/analytics/imports', c.analyticsController.createImportSession);
 router.patch('/analytics/imports/:id', c.analyticsController.updateImportSessionStatus);
 
+// AI Assistant
+router.post('/assistant/chat', c.assistantController.chat);
+
 export default router;

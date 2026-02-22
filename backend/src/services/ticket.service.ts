@@ -82,9 +82,10 @@ export class TicketService {
             }
         }
 
-        // 1. Создаем тикет
+        // 1. Создаем тикет (используем clientGuid в качестве primary id для удобства маппинга)
         const ticket = await prisma.ticket.create({
             data: {
+                id: data.clientGuid,
                 clientGuid: data.clientGuid,
                 gender: data.gender,
                 dateOfBirth: new Date(data.dateOfBirth),
@@ -105,7 +106,11 @@ export class TicketService {
             if (!description.trim() && !aiAttachment) {
                 return getDefaultAnalysis();
             }
-            return await this.ai.analyzeTicket(description, segment, aiAttachment);
+            return await this.ai.analyzeTicket(description, segment, aiAttachment, {
+                country: data.country,
+                oblast: data.oblast,
+                city: data.city
+            });
         };
 
         const aiStart = performance.now();

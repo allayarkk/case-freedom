@@ -18,8 +18,8 @@ const SYSTEM_PROMPT = `Ты — экспертный классификатор 
 1. ТИП ОБРАЩЕНИЯ: Жалоба, Смена_данных, Консультация (только информационные вопросы), Претензия (требования/деньги), Неработоспособность_приложения, Мошеннические_действия, Спам.
 2. ТОНАЛЬНОСТЬ: Позитивный, Нейтральный, Негативный.
 3. ПРИОРИТЕТНОСТЬ (Шкала 1-10):
-   - 10: Мошенничество, угрозы, критические баги оплаты.
-   - 8-9: Претензии по деньгам, негатив от VIP-клиентов.
+   - 10: Мошенничество, угрозы, критические баги оплаты, негатив от VIP-клиентов.
+   - 8-9: Претензии по деньгам, VIP-клиенты.
    - 5-7: Смена данных, технические ошибки в приложении.
    - 1-4: Обычные консультации, благодарности, спам.
 4. ЯЗЫК: KZ, ENG, RU. По умолчанию RU.
@@ -45,22 +45,30 @@ const VISION_SYSTEM_PROMPT = `Ты — аналитик Freedom Broker. Оцен
 export class AIService {
     private openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    async analyzeTicket(description: string, segment: string, attachments?: string | null): Promise<AIAnalysisResult> {
+    async analyzeTicket(
+        description: string,
+        segment: string,
+        attachments?: string | null,
+        locationContext?: { country: string, oblast: string, city: string }
+    ): Promise<AIAnalysisResult> {
         try {
             const isImage = !!attachments && (attachments.startsWith('data:image/') || (attachments.length > 100 && !attachments.includes(' ')));
 
-            const segmentRules = `Доп. правило для VIP: Если сегмент VIP, приоритет не может быть ниже 6.`;
+            const segmentRules = `Доп. правило для VIP: Если сегмент VIP, приоритет не может быть ниже 8.`;
 
             const imageUrl = isImage && !attachments!.startsWith('data:') ? `data:image/jpeg;base64,${attachments}` : attachments;
+
+            const addressText = locationContext ? `[Заявленный адрес: ${locationContext.country}, ${locationContext.oblast}, ${locationContext.city}]` : '';
+            const textContent = `${description}\n${addressText}`.trim();
 
             const messages: OpenAI.ChatCompletionMessageParam[] = isImage
                 ? [
                     { role: 'system', content: `${VISION_SYSTEM_PROMPT}\n${segmentRules}` },
-                    { role: 'user', content: [{ type: 'text', text: description || 'Скриншот' }, { type: 'image_url', image_url: { url: imageUrl!, detail: 'low' } }] }
+                    { role: 'user', content: [{ type: 'text', text: textContent || 'Скриншот' }, { type: 'image_url', image_url: { url: imageUrl!, detail: 'low' } }] }
                 ]
                 : [
                     { role: 'system', content: `${SYSTEM_PROMPT}\n${segmentRules}` },
-                    { role: 'user', content: attachments ? `${description}\n[Вложение: ${attachments}]` : description }
+                    { role: 'user', content: attachments ? `${textContent}\n[Вложение: ${attachments}]` : textContent }
                 ];
 
             const response = await this.openai.chat.completions.create({

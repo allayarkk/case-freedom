@@ -58,18 +58,37 @@ export class RoutingService {
         const clientCoords = ticketAnalysis?.latitude ? { lat: ticketAnalysis.latitude, lng: ticketAnalysis.longitude! } : null;
 
         let sortedOffices = [...offices];
+        const clientCity = (analysis.normalizedLocation?.city || ticket.city || '').toLowerCase().trim();
+
         if (clientCoords) {
             sortedOffices = offices.map(o => ({
                 ...o,
                 distance: o.latitude ? this.geo.calculateDistance(clientCoords, { lat: o.latitude, lng: o.longitude! }) : Infinity
-            })).sort((a, b) => a.distance - b.distance);
+            })).sort((a, b) => {
+                // Прямое сравнение дистанций, если они обе существуют
+                if (a.distance !== Infinity && b.distance !== Infinity) {
+                    return a.distance - b.distance;
+                }
+
+                // Fallback: если координат нет, полагаемся на совпадение по имени города
+                const aName = a.name.toLowerCase().trim();
+                const bName = b.name.toLowerCase().trim();
+
+                if (aName === clientCity && bName !== clientCity) return -1;
+                if (bName === clientCity && aName !== clientCity) return 1;
+
+                const hqList = ['астана', 'алматы'];
+                if (hqList.includes(aName) && !hqList.includes(bName)) return -1;
+                if (hqList.includes(bName) && !hqList.includes(aName)) return 1;
+
+                return a.distance - b.distance;
+            });
         } else {
-            const city = (analysis.normalizedLocation?.city || ticket.city || '').toLowerCase().trim();
             sortedOffices = offices.sort((a, b) => {
                 const aName = a.name.toLowerCase().trim();
                 const bName = b.name.toLowerCase().trim();
-                if (aName === city) return -1;
-                if (bName === city) return 1;
+                if (aName === clientCity) return -1;
+                if (bName === clientCity) return 1;
                 const hqList = ['астана', 'алматы'];
                 if (hqList.includes(aName)) return -1;
                 if (hqList.includes(bName)) return 1;

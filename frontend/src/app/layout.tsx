@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
+import { AssistantSidebar } from '@/components/AssistantSidebar';
 
-const inter = Inter({ subsets: ["latin", "cyrillic"] });
+const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 
 export const metadata: Metadata = {
-  title: "FIRE Engine | Intelligent Routing",
-  description: "Freedom Intelligence Routing Engine",
+  title: 'FIRE Engine | Intelligent Routing',
+  description: 'Freedom Intelligence Routing Engine',
 };
 
 export default function RootLayout({
@@ -27,6 +28,7 @@ export default function RootLayout({
                 <SidebarTrigger className="text-[#5b6f7c] hover:text-white" />
               </div>
               {children}
+              <AssistantSidebar />
             </main>
           </div>
         </SidebarProvider>

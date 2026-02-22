@@ -33,7 +33,6 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
 
     return (
         <motion.div
-            layout
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             onClick={handleOpen}
@@ -55,16 +54,25 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
                 {ticket.description}
             </p>
 
-            <div className="flex items-center justify-between text-[10px]">
-                <div className="flex gap-1.5 items-center">
-                    <span className={`px-1 rounded-[2px] font-bold text-[9px] ${ticket.segment === 'VIP' ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-500/20 text-slate-400'
+            <div className="flex items-center justify-between text-[10px] mt-2">
+                <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className={`px-1 rounded-[2px] font-bold text-[9px] whitespace-nowrap ${ticket.segment === 'VIP' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : ticket.segment === 'PRIORITY' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/20' : 'bg-slate-500/20 text-slate-400 border border-slate-500/20'
                         }`}>
                         {ticket.segment === 'VIP' ? 'VIP' : ticket.segment === 'PRIORITY' ? 'ПРИОР' : 'МАСС'}
                     </span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                    {ticket.analysis?.type && (
+                        <span className="px-1 rounded-[2px] bg-primary/10 text-primary text-[9px] font-medium border border-primary/20 whitespace-nowrap">
+                            {ticket.analysis.type.replace(/_/g, ' ')}
+                        </span>
+                    )}
+                    {ticket.city && (
+                        <span className="px-1 rounded-[2px] bg-white/5 text-[#8899a6] text-[9px] border border-white/10 whitespace-nowrap max-w-[80px] truncate" title={ticket.city}>
+                            {ticket.city}
+                        </span>
+                    )}
                 </div>
                 {ticket.analysis && (
-                    <span className="text-[#5b6f7c] font-mono tabular-nums">P{ticket.analysis.priority}</span>
+                    <span className="text-white bg-red-500/20 px-1 rounded-[2px] border border-red-500/30 font-mono tabular-nums flex-shrink-0 font-bold ml-2">P{ticket.analysis.priority}</span>
                 )}
             </div>
         </motion.div>

@@ -452,12 +452,16 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                 </p>
                                             </div>
                                             {ticket?.attachments && (
-                                                <div className="flex items-center gap-4 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
-                                                    <ShieldAlert size={18} className="text-amber-500 shrink-0" />
-                                                    <div className="flex flex-col">
+                                                <div className="flex flex-col gap-4 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+                                                    <div className="flex items-center gap-3">
+                                                        <ShieldAlert size={18} className="text-amber-500 shrink-0" />
                                                         <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Цифровое вложение</span>
-                                                        <span className="text-[11px] text-[#cbd3d9] font-mono truncate max-w-md">{ticket.attachments}</span>
                                                     </div>
+                                                    {ticket.attachments.startsWith('data:image') || ticket.attachments.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
+                                                        <img src={ticket.attachments} alt="Вложение" className="w-full max-h-[400px] object-contain rounded-xl border border-amber-500/20" />
+                                                    ) : (
+                                                        <span className="text-[11px] text-[#cbd3d9] font-mono truncate max-w-md ml-7">{ticket.attachments}</span>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
