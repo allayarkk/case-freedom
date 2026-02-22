@@ -48,7 +48,7 @@ export function AssistantSidebar() {
     const [isOpen, setIsOpen] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
-        api: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'}/assistant/chat`,
+        api: '/api/v1/assistant/chat',
         onError: (err) => {
             console.error('Chat stream error:', err);
         }

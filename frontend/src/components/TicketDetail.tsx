@@ -300,7 +300,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                             <div>
                                 <h2 className="text-white font-black text-sm uppercase tracking-wider flex items-center gap-2">
                                     Diagnostic Trace
-                                    <span className="text-[#5b6f7c] font-mono text-xs font-normal ml-2">#{ticketId.slice(-8).toUpperCase()}</span>
+                                    <span className="text-[#5b6f7c] font-mono text-xs font-normal ml-2">#{ticketId.slice(0, 7).toUpperCase()}</span>
                                 </h2>
                                 <p className="text-[10px] text-[#5b6f7c] font-bold uppercase tracking-tighter">Системный аудит обработки обращения</p>
                             </div>
@@ -457,8 +457,8 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                                                         <ShieldAlert size={18} className="text-amber-500 shrink-0" />
                                                         <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Цифровое вложение</span>
                                                     </div>
-                                                    {ticket.attachments.startsWith('data:image') || ticket.attachments.match(/\.(jpeg|jpg|png|gif|webp)$/i) ? (
-                                                        <img src={ticket.attachments} alt="Вложение" className="w-full max-h-[400px] object-contain rounded-xl border border-amber-500/20" />
+                                                    {ticket.attachments.startsWith('data:image') || ticket.attachments.match(/\\.(jpeg|jpg|png|gif|webp)$/i) || (ticket.attachments.length > 100 && !ticket.attachments.includes(' ')) ? (
+                                                        <img src={ticket.attachments.startsWith('data:') ? ticket.attachments : `data:image/jpeg;base64,${ticket.attachments}`} alt="Вложение" className="w-full max-h-[400px] object-contain rounded-xl border border-amber-500/20" />
                                                     ) : (
                                                         <span className="text-[11px] text-[#cbd3d9] font-mono truncate max-w-md ml-7">{ticket.attachments}</span>
                                                     )}

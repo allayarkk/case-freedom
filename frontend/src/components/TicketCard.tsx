@@ -44,7 +44,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
                         {ticket.manager?.fullName || 'Без менеджера'}
                     </span>
                     <span className="text-[#3489db] group-hover:underline text-[11px] font-bold mt-0.5">
-                        #{ticket.id.slice(-6).toUpperCase()}
+                        #{ticket.id.slice(0, 7).toUpperCase()}
                     </span>
                 </div>
                 <span className="text-[#5b6f7c] tabular-nums">{dateStr}</span>

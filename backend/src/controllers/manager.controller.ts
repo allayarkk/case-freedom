@@ -18,7 +18,13 @@ export class ManagerController {
         try {
             const manager = await prisma.manager.findUnique({
                 where: { id: req.params.id as string },
-                include: { office: true },
+                include: {
+                    office: true,
+                    tickets: {
+                        include: { analysis: true, manager: true },
+                        orderBy: { createdAt: 'desc' }
+                    }
+                },
             });
             if (!manager) { res.status(404).json({ success: false, error: { message: 'Manager not found' } }); return; }
             res.json(successResponse(manager));

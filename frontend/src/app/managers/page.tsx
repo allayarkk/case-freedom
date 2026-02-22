@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TicketDetail } from '@/components/TicketDetail';
+import { ManagerDetail } from '@/components/ManagerDetail';
 
 function ManagersContent() {
     const [managers, setManagers] = useState<any[]>([]);
@@ -31,6 +32,7 @@ function ManagersContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const selectedTicketId = searchParams.get('ticketId');
+    const selectedManagerId = searchParams.get('managerId');
 
     const loadManagers = async () => {
         try {
@@ -50,6 +52,18 @@ function ManagersContent() {
     const closeDetail = () => {
         const params = new URLSearchParams(searchParams.toString());
         params.delete('ticketId');
+        router.push(`?${params.toString()}`, { scroll: false });
+    };
+
+    const closeManagerDetail = () => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('managerId');
+        router.push(`?${params.toString()}`, { scroll: false });
+    };
+
+    const openManagerDetail = (id: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('managerId', id);
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
@@ -137,7 +151,8 @@ function ManagersContent() {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.02 }}
-                                className="bg-[#182833] border border-[#233642] p-5 rounded-lg hover:border-[#3489db]/40 transition-all group"
+                                onClick={() => openManagerDetail(manager.id)}
+                                className="bg-[#182833] border border-[#233642] p-5 rounded-lg hover:border-[#3489db]/40 cursor-pointer transition-all group"
                             >
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex gap-3">
@@ -182,15 +197,15 @@ function ManagersContent() {
 
                                 <div className="mt-4 pt-4 border-t border-[#233642]">
                                     <div className="flex justify-between items-center mb-1.5">
-                                        <span className="text-[10px] text-[#5b6f7c] font-bold uppercase tracking-wider">Загрузка</span>
-                                        <span className="text-[10px] text-[#cbd3d9] font-bold">{manager.activeTicketCount}/10</span>
+                                        <span className="text-[10px] text-[#5b6f7c] font-bold uppercase tracking-wider">Загрузка (Активные тикеты)</span>
+                                        <span className="text-[10px] text-[#cbd3d9] font-bold">{manager.activeTicketCount}</span>
                                     </div>
                                     <div className="w-full h-1 bg-[#111b21] rounded-full overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
-                                            animate={{ width: `${Math.min((manager.activeTicketCount / 10) * 100, 100)}%` }}
-                                            className={`h-full transition-all ${manager.activeTicketCount >= 8 ? 'bg-red-500' :
-                                                manager.activeTicketCount >= 5 ? 'bg-amber-500' : 'bg-[#3489db]'
+                                            animate={{ width: `${Math.min((manager.activeTicketCount / 50) * 100, 100)}%` }}
+                                            className={`h-full transition-all ${manager.activeTicketCount >= 20 ? 'bg-red-500' :
+                                                manager.activeTicketCount >= 10 ? 'bg-amber-500' : 'bg-[#3489db]'
                                                 }`}
                                         />
                                     </div>
@@ -317,6 +332,11 @@ function ManagersContent() {
             <TicketDetail
                 ticketId={selectedTicketId}
                 onClose={closeDetail}
+            />
+
+            <ManagerDetail
+                managerId={selectedManagerId}
+                onClose={closeManagerDetail}
             />
         </>
     );
