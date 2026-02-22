@@ -46,7 +46,8 @@ function DashboardContent() {
         return tickets.filter(t =>
             t.description.toLowerCase().includes(s) ||
             t.manager?.fullName?.toLowerCase().includes(s) ||
-            t.id.toLowerCase().includes(s)
+            t.id.toLowerCase().includes(s) ||
+            t.clientGuid?.toLowerCase().includes(s)
         );
     }, [tickets, searchTerm]);
 

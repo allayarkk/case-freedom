@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { useChat } from 'ai/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -30,6 +30,7 @@ import {
     Line
 } from 'recharts';
 import { TicketCard } from './TicketCard';
+import { useAssistant } from '@/context/AssistantContext';
 
 const COLORS = [
     '#3489db', // primary blue
@@ -45,7 +46,7 @@ const COLORS = [
 ];
 
 export function AssistantSidebar() {
-    const [isOpen, setIsOpen] = useState(false);
+    const { isOpen, setIsOpen } = useAssistant();
     const scrollRef = useRef<HTMLDivElement>(null);
     const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
         api: '/api/v1/assistant/chat',
@@ -257,24 +258,6 @@ export function AssistantSidebar() {
 
     return (
         <>
-            {/* Toggle Button */}
-            <div className="fixed top-4 right-4 z-[60]">
-                <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    className={`p-3 rounded-2xl border transition-all duration-300 shadow-2xl flex items-center gap-2 group ${isOpen
-                        ? 'bg-[#182833] border-[#233642] text-white'
-                        : 'bg-primary border-primary/20 text-white hover:scale-105'
-                        }`}
-                >
-                    {isOpen ? <X size={20} /> : (
-                        <>
-                            <Sparkles size={20} className="animate-pulse" />
-                            <span className="text-xs font-black uppercase tracking-wider hidden md:block">AI Assistant</span>
-                        </>
-                    )}
-                </button>
-            </div>
-
             {/* Sidebar */}
             <AnimatePresence>
                 {isOpen && (
@@ -286,13 +269,19 @@ export function AssistantSidebar() {
                         className="fixed right-0 top-0 h-screen w-full md:w-[400px] bg-[#0d161d] border-l border-[#233642] z-50 shadow-2xl flex flex-col"
                     >
                         {/* Header */}
-                        <div className="p-6 border-b border-[#233642] bg-[#111b21] shrink-0">
+                        <div className="p-6 border-b border-[#233642] bg-[#111b21] shrink-0 flex items-center justify-between">
                             <h3 className="text-lg font-bold flex items-center gap-3">
                                 <div className="p-2 rounded-xl bg-primary/20 text-primary">
                                     <Bot size={20} />
                                 </div>
                                 Intelligence Assistant
                             </h3>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="text-[#5b6f7c] hover:text-white transition-all bg-[#0d161d] p-2 rounded-xl border border-[#233642]"
+                            >
+                                <X size={20} />
+                            </button>
                         </div>
                         {/* Messages Area */}
                         <div

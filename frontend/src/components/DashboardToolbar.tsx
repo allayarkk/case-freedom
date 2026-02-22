@@ -3,6 +3,7 @@
 import { Search, MoreHorizontal, LayoutGrid, Building2, User } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AssistantTrigger } from '@/components/AssistantTrigger';
 
 export type GroupingMode = 'priority' | 'office' | 'manager';
 
@@ -34,14 +35,14 @@ export function DashboardToolbar({
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5b6f7c]" />
                     <input
                         type="text"
-                        placeholder="Поиск и фильтр"
+                        placeholder="Поиск"
                         onChange={(e) => onSearch(e.target.value)}
                         className="bg-transparent text-xs pl-9 pr-4 py-1.5 rounded-md border border-transparent focus:border-[#3489db] focus:bg-[#182833] focus:outline-none w-64 transition-all"
                     />
                 </div>
             </div>
-
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <AssistantTrigger />
                 <div className="relative">
                     <button
                         onClick={() => setShowMenu(!showMenu)}

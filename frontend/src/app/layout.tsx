@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   description: 'Freedom Intelligence Routing Engine',
 };
 
+import { AssistantProvider } from '@/context/AssistantContext';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,18 +22,20 @@ export default function RootLayout({
   return (
     <html lang="ru" className="dark">
       <body className={`${inter.className} bg-[#0d161d] text-[#cbd3d9]`}>
-        <SidebarProvider defaultOpen={false}>
-          <div className="flex h-screen w-full overflow-hidden">
-            <AppSidebar />
-            <main className="flex-1 overflow-auto relative">
-              <div className="absolute top-4 left-4 z-50">
-                <SidebarTrigger className="text-[#5b6f7c] hover:text-white" />
-              </div>
-              {children}
-              <AssistantSidebar />
-            </main>
-          </div>
-        </SidebarProvider>
+        <AssistantProvider>
+          <SidebarProvider defaultOpen={false}>
+            <div className="flex h-screen w-full overflow-hidden">
+              <AppSidebar />
+              <main className="flex-1 overflow-auto relative">
+                <div className="absolute top-4 left-4 z-50">
+                  <SidebarTrigger className="text-[#5b6f7c] hover:text-white" />
+                </div>
+                {children}
+                <AssistantSidebar />
+              </main>
+            </div>
+          </SidebarProvider>
+        </AssistantProvider>
       </body>
     </html>
   );

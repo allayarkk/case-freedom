@@ -15,6 +15,8 @@ export interface Ticket {
         priority: number;
         summary: string;
     };
+    attachments?: string;
+    clientGuid?: string;
 }
 
 export function TicketCard({ ticket }: { ticket: Ticket }) {
@@ -50,9 +52,19 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
                 <span className="text-[#5b6f7c] tabular-nums">{dateStr}</span>
             </div>
 
-            <p className="text-[11px] text-[#cbd3d9] line-clamp-2 leading-[1.3] mb-2 font-medium">
+            <p className="text-[11px] text-[#cbd3d9] line-clamp-2 leading-[1.3] font-medium">
                 {ticket.description}
             </p>
+
+            {ticket.attachments && (ticket.attachments.startsWith('data:image') || ticket.attachments.match(/\.(jpeg|jpg|png|gif|webp)$/i) || (ticket.attachments.length > 100 && !ticket.attachments.includes(' '))) && (
+                <div className="mt-2 w-full h-16 rounded overflow-hidden border border-[#233642]/50 bg-black/20">
+                    <img
+                        src={ticket.attachments.startsWith('data:') ? ticket.attachments : `data:image/jpeg;base64,${ticket.attachments}`}
+                        alt="Вложение"
+                        className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity"
+                    />
+                </div>
+            )}
 
             <div className="flex items-center justify-between text-[10px] mt-2">
                 <div className="flex flex-wrap gap-1.5 items-center">

@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { TicketDetail } from '@/components/TicketDetail';
 import { ManagerDetail } from '@/components/ManagerDetail';
+import { AssistantTrigger } from '@/components/AssistantTrigger';
 
 function ManagersContent() {
     const [managers, setManagers] = useState<any[]>([]);
@@ -129,6 +130,7 @@ function ManagersContent() {
                     </div>
 
                     <div className="flex items-center gap-4">
+                        <AssistantTrigger />
                         <div className="text-[11px] text-[#5b6f7c] font-bold uppercase tracking-tighter">
                             {filteredManagers.length} <span className="opacity-60 font-medium">сотрудников</span>
                         </div>

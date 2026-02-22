@@ -23,6 +23,7 @@ import {
     Route,
     Loader2,
 } from 'lucide-react';
+import { AssistantTrigger } from '@/components/AssistantTrigger';
 
 interface ImportSession {
     id: string;
@@ -91,7 +92,8 @@ export default function AnalyticsPage() {
                     </h2>
                     <p className="text-[#5b6f7c]">Аналитика импорта и время отклика AI-ядра системы.</p>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-4 items-center">
+                    <AssistantTrigger />
                     <div className="bg-[#182833] border border-[#233642] px-6 py-3 rounded-2xl flex items-center gap-3">
                         <BarChart3 className="text-emerald-400" size={20} />
                         <div>

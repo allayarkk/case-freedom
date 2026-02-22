@@ -159,6 +159,7 @@ export class AssistantService {
                                 description: t.description || 'Без текста',
                                 city: t.city || 'Неизвестно',
                                 segment: t.segment,
+                                attachments: t.attachments,
                                 createdAt: t.createdAt.toISOString(),
                                 manager: t.manager ? { id: t.manager.id, fullName: t.manager.fullName } : undefined,
                                 analysis: t.analysis ? {
